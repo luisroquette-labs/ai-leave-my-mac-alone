@@ -20,6 +20,13 @@ final class StorageMonitor: ObservableObject {
         didSet { defaults.set(automaticCleanupEnabled, forKey: Keys.automaticCleanup) }
     }
 
+    @Published var deepCleanupEnabled: Bool {
+        didSet {
+            defaults.set(deepCleanupEnabled, forKey: Keys.deepCleanup)
+            SafeCleaner.record("MODE limpeza profunda=\(deepCleanupEnabled)")
+        }
+    }
+
     private let defaults: UserDefaults
     private var monitoringTask: Task<Void, Never>?
     private var warningLatched: Bool
@@ -34,6 +41,7 @@ final class StorageMonitor: ObservableObject {
         externalBackupPath = defaults.string(forKey: Keys.externalBackupPath)
         let cleanupEnabled = defaults.object(forKey: Keys.automaticCleanup) as? Bool ?? true
         automaticCleanupEnabled = cleanupEnabled
+        deepCleanupEnabled = defaults.bool(forKey: Keys.deepCleanup)
         defaults.set(cleanupEnabled, forKey: Keys.automaticCleanup)
         warningLatched = defaults.bool(forKey: Keys.warningLatched)
         lastCleanupAt = defaults.object(forKey: Keys.lastCleanupAt) as? Date
@@ -118,13 +126,16 @@ final class StorageMonitor: ObservableObject {
             return
         }
         isCleaning = true
-        lastAction = isAutomatic ? "Limpeza automática iniciada…" : "Limpeza segura iniciada…"
+        lastAction = deepCleanupEnabled
+            ? "Limpeza profunda iniciada…"
+            : (isAutomatic ? "Limpeza automática iniciada…" : "Limpeza segura iniciada…")
 
         Task {
             let startingFraction = snapshot?.usedFraction ?? 0
             let result = await SafeCleaner.run(
                 includeNativeCaches: !isAutomatic || !StoragePolicy.isAtOrAboveHardLimit(startingFraction),
                 escalateNativeCachesAtHardLimit: isAutomatic,
+                deepCleanupEnabled: deepCleanupEnabled,
                 destination: cleanupDestination,
                 externalBackupPath: externalBackupPath
             )
@@ -305,6 +316,7 @@ final class StorageMonitor: ObservableObject {
 
     private enum Keys {
         static let automaticCleanup = "automaticCleanupEnabled"
+        static let deepCleanup = "deepCleanupEnabled"
         static let warningLatched = "warningLatched"
         static let lastCleanupAt = "lastCleanupAt"
         static let lastCleanupMadeProgress = "lastCleanupMadeProgress"

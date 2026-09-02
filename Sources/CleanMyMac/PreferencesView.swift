@@ -6,6 +6,13 @@ struct PreferencesView: View {
 
     var body: some View {
         Form {
+            Section("Modo de limpeza") {
+                Toggle("Limpeza Profunda", isOn: $monitor.deepCleanupEnabled)
+                Text("Amplia a busca para /private/tmp, mantendo o mesmo bloqueio de processos ativos, Git, links simbólicos e caminhos protegidos.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Destino dos arquivos") {
                 Picker(
                     "Depois da verificação segura",
@@ -58,7 +65,7 @@ struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: monitor.cleanupDestination == .externalBackup ? 420 : 350)
+        .frame(width: 540, height: monitor.cleanupDestination == .externalBackup ? 500 : 430)
         .navigationTitle("Clean My Mac")
     }
 

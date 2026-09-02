@@ -12,9 +12,16 @@ public enum CleanupPolicy {
         return left == right || left.hasPrefix(right + "/") || right.hasPrefix(left + "/")
     }
 
-    public static func artifactScanRoots(homePath: String) -> [String] {
-        ["Projects", "Projetos", "Developer", "Code"]
+    public static func artifactScanRoots(
+        homePath: String,
+        includeTemporaryWorktrees: Bool = false
+    ) -> [String] {
+        var roots = ["Projects", "Projetos", "Developer", "Code"]
             .map { URL(filePath: homePath).appending(path: $0).path }
+        if includeTemporaryWorktrees {
+            roots.append("/private/tmp")
+        }
+        return roots
     }
 
     public static func isProtected(_ path: String, protectedPaths: [String]) -> Bool {

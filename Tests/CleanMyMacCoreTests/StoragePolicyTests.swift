@@ -188,6 +188,12 @@ import Testing
     let roots = CleanupPolicy.artifactScanRoots(homePath: "/Users/example")
     #expect(roots.contains("/Users/example/Projects"))
     #expect(!roots.contains("/private/tmp"))
+    let deepRoots = CleanupPolicy.artifactScanRoots(
+        homePath: "/Users/example",
+        includeTemporaryWorktrees: true
+    )
+    #expect(deepRoots.contains("/private/tmp"))
+    #expect(CleanupPolicy.shouldExcludeDirectory(named: "claude-501"))
     #expect(CleanupPolicy.pathsOverlap("/Users/example/Projects/app/node_modules", "/Users/example/Projects/app"))
     #expect(!CleanupPolicy.pathsOverlap("/Users/example/Other/node_modules", "/Users/example/Projects/app"))
     #expect(CleanupPolicy.isProtected(

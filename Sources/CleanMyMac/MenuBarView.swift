@@ -15,6 +15,15 @@ struct MenuBarView: View {
                 .toggleStyle(.switch)
                 .accessibilityHint("Executa a limpeza segura quando o armazenamento chega a 78 por cento")
 
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Limpeza Profunda", isOn: $monitor.deepCleanupEnabled)
+                    .toggleStyle(.switch)
+                    .accessibilityHint("Inclui artefatos regeneráveis de worktrees temporárias")
+                Text("Inclui somente .next e node_modules ignorados pelo Git em /private/tmp. Sessões, código e projetos ativos continuam protegidos.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             Toggle(
                 "Abrir ao iniciar sessão",
                 isOn: Binding(
@@ -37,7 +46,9 @@ struct MenuBarView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Limpeza em andamento…")
                             .font(.callout.weight(.semibold))
-                        Text("Verificando e removendo somente itens seguros.")
+                        Text(monitor.deepCleanupEnabled
+                            ? "Verificando também worktrees temporárias seguras."
+                            : "Verificando e removendo somente itens seguros.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -66,7 +77,7 @@ struct MenuBarView: View {
                 }
                 .disabled(monitor.isSampling || monitor.isCleaning)
 
-                Button(monitor.isCleaning ? "Limpando…" : "Limpar agora") {
+                Button(monitor.isCleaning ? "Limpando…" : cleanupActionTitle) {
                     confirmingCleanup = true
                 }
                 .buttonStyle(.borderedProminent)
@@ -103,7 +114,9 @@ struct MenuBarView: View {
 
     private var cleanupConfirmation: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Executar limpeza segura agora?")
+            Text(monitor.deepCleanupEnabled
+                ? "Executar Limpeza Profunda agora?"
+                : "Executar limpeza segura agora?")
                 .font(.callout.weight(.semibold))
             Text(cleanupConfirmationMessage)
                 .font(.caption)
@@ -198,14 +211,21 @@ struct MenuBarView: View {
     }
 
     private var cleanupConfirmationMessage: String {
+        let deepScope = monitor.deepCleanupEnabled
+            ? "Também serão examinadas worktrees temporárias em /private/tmp. "
+            : ""
         switch monitor.cleanupDestination {
         case .trash:
-            "Os artefatos seguros serão movidos para a Lixeira. Nada que já estava nela será apagado."
+            return deepScope + "Os artefatos seguros serão movidos para a Lixeira. Nada que já estava nela será apagado."
         case .deleteBatch:
-            "Somente o novo lote seguro será movido para a Lixeira e apagado. Itens antigos serão preservados."
+            return deepScope + "Somente o novo lote seguro será movido para a Lixeira e apagado. Itens antigos serão preservados."
         case .externalBackup:
-            "Os artefatos seguros irão para um lote recuperável, serão copiados e verificados por SHA-256; somente esse lote será apagado."
+            return deepScope + "Os artefatos seguros irão para um lote recuperável, serão copiados e verificados por SHA-256; somente esse lote será apagado."
         }
+    }
+
+    private var cleanupActionTitle: String {
+        monitor.deepCleanupEnabled ? "Limpeza Profunda" : "Limpar agora"
     }
 
     private var cleanupConfirmationButton: String {
