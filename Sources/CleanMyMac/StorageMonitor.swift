@@ -120,13 +120,14 @@ final class StorageMonitor: ObservableObject {
         }
     }
 
-    func cleanNow(isAutomatic: Bool = false) {
+    func cleanNow(isAutomatic: Bool = false, deepCleanup: Bool? = nil) {
         guard !isCleaning else {
             lastAction = "Uma limpeza já está em andamento."
             return
         }
+        let useDeepCleanup = deepCleanup ?? deepCleanupEnabled
         isCleaning = true
-        lastAction = deepCleanupEnabled
+        lastAction = useDeepCleanup
             ? "Limpeza profunda iniciada…"
             : (isAutomatic ? "Limpeza automática iniciada…" : "Limpeza segura iniciada…")
 
@@ -135,7 +136,7 @@ final class StorageMonitor: ObservableObject {
             let result = await SafeCleaner.run(
                 includeNativeCaches: !isAutomatic || !StoragePolicy.isAtOrAboveHardLimit(startingFraction),
                 escalateNativeCachesAtHardLimit: isAutomatic,
-                deepCleanupEnabled: deepCleanupEnabled,
+                deepCleanupEnabled: useDeepCleanup,
                 destination: cleanupDestination,
                 externalBackupPath: externalBackupPath
             )

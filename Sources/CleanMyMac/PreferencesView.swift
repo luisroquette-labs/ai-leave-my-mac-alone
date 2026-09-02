@@ -7,8 +7,8 @@ struct PreferencesView: View {
     var body: some View {
         Form {
             Section("Modo de limpeza") {
-                Toggle("Limpeza Profunda", isOn: $monitor.deepCleanupEnabled)
-                Text("Amplia a busca para /private/tmp, mantendo o mesmo bloqueio de processos ativos, Git, links simbólicos e caminhos protegidos.")
+                Toggle("Automática em modo profundo", isOn: $monitor.deepCleanupEnabled)
+                Text("Amplia a limpeza automática para /private/tmp, mantendo o mesmo bloqueio de processos ativos, Git, links simbólicos e caminhos protegidos.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
