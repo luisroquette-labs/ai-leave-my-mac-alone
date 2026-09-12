@@ -25,4 +25,4 @@ cd "$project_dir"
 swift test
 ./Scripts/make-app.sh
 ./Scripts/check-public-release.sh
-/usr/bin/codesign --verify --deep --strict "dist/Clean My Mac.app"
+/usr/bin/codesign --verify --deep --strict "dist/AI, Leave My Mac Alone!.app"

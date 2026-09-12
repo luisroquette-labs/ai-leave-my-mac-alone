@@ -547,7 +547,7 @@ enum SafeCleaner {
             case .externalBackup:
                 guard let externalBackupPath else { throw DisposalError.externalDriveUnavailable }
                 root = URL(filePath: externalBackupPath, directoryHint: .isDirectory)
-                    .appending(path: "Clean My Mac Backups", directoryHint: .isDirectory)
+                    .appending(path: "AI, Leave My Mac Alone! Backups", directoryHint: .isDirectory)
                     .appending(path: batchName, directoryHint: .isDirectory)
             }
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
