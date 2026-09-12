@@ -6,6 +6,20 @@ struct PreferencesView: View {
 
     var body: some View {
         Form {
+            Section("Alívio de memória") {
+                Toggle("Alívio automático de memória", isOn: $monitor.automaticMemoryReliefEnabled)
+                Text("Quando a RAM livre cai abaixo de 300 MB e o swap passa de 90%, encerra automaticamente builds Next.js/tsc/webpack/vite/turbo travados que ficaram órfãos de sessões antigas. Nunca afeta Comet, Terminal, Finder ou o próprio AI, Leave My Mac Alone!.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Modo de limpeza") {
+                Toggle("Automática em modo profundo", isOn: $monitor.deepCleanupEnabled)
+                Text("Amplia a limpeza automática para /private/tmp, mantendo o mesmo bloqueio de processos ativos, Git, links simbólicos e caminhos protegidos.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Destino dos arquivos") {
                 Picker(
                     "Depois da verificação segura",
@@ -58,8 +72,8 @@ struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: monitor.cleanupDestination == .externalBackup ? 420 : 350)
-        .navigationTitle("Clean My Mac")
+        .frame(width: 540, height: monitor.cleanupDestination == .externalBackup ? 610 : 540)
+        .navigationTitle("AI, Leave My Mac Alone!")
     }
 
     private var destinationDescription: String {

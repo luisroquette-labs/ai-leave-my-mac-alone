@@ -47,6 +47,7 @@ enum SafeCleaner {
     static func run(
         includeNativeCaches: Bool = true,
         escalateNativeCachesAtHardLimit: Bool = false,
+        deepCleanupEnabled: Bool = false,
         destination: CleanupDestination = .deleteBatch,
         externalBackupPath: String? = nil
     ) async -> CleanupResult {
@@ -54,6 +55,7 @@ enum SafeCleaner {
             runSynchronously(
                 includeNativeCaches: includeNativeCaches,
                 escalateNativeCachesAtHardLimit: escalateNativeCachesAtHardLimit,
+                deepCleanupEnabled: deepCleanupEnabled,
                 destination: destination,
                 externalBackupPath: externalBackupPath
             )
@@ -107,6 +109,7 @@ enum SafeCleaner {
     private static func runSynchronously(
         includeNativeCaches: Bool,
         escalateNativeCachesAtHardLimit: Bool,
+        deepCleanupEnabled: Bool,
         destination: CleanupDestination,
         externalBackupPath: String?
     ) -> CleanupResult {
@@ -115,13 +118,17 @@ enum SafeCleaner {
         var blockedTargets = 0
         var failedTargets = 0
         let log = CleanupLog(url: logURL)
-        log.append("START armazenamento seguro destino=\(destination.rawValue)")
+        log.append("START armazenamento seguro destino=\(destination.rawValue) profunda=\(deepCleanupEnabled)")
 
         var disposal = DisposalSession(
             destination: destination,
             externalBackupPath: externalBackupPath
         )
-        let artifactResult = cleanGeneratedArtifacts(log: log, disposal: &disposal)
+        let artifactResult = cleanGeneratedArtifacts(
+            deepCleanupEnabled: deepCleanupEnabled,
+            log: log,
+            disposal: &disposal
+        )
         removedTargets += artifactResult.removed
         blockedTargets += artifactResult.blocked
         failedTargets += artifactResult.failed
@@ -187,6 +194,7 @@ enum SafeCleaner {
     }
 
     private static func cleanGeneratedArtifacts(
+        deepCleanupEnabled: Bool,
         log: CleanupLog,
         disposal: inout DisposalSession
     ) -> (removed: Int, blocked: Int, failed: Int) {
@@ -200,7 +208,7 @@ enum SafeCleaner {
             return (0, 0, 1)
         }
         let scanStartedAt = Date()
-        let scanResult = artifactCandidates(log: log)
+        let scanResult = artifactCandidates(deepCleanupEnabled: deepCleanupEnabled, log: log)
         let candidates = scanResult.candidates
         failed += scanResult.scanFailures
         let scanMilliseconds = Int(Date().timeIntervalSince(scanStartedAt) * 1_000)
@@ -308,9 +316,15 @@ enum SafeCleaner {
         return (removed, blocked, failed)
     }
 
-    private static func artifactCandidates(log: CleanupLog) -> (candidates: [URL], scanFailures: Int) {
+    private static func artifactCandidates(
+        deepCleanupEnabled: Bool,
+        log: CleanupLog
+    ) -> (candidates: [URL], scanFailures: Int) {
         let fileManager = FileManager.default
-        var roots = CleanupPolicy.artifactScanRoots(homePath: home.path)
+        var roots = CleanupPolicy.artifactScanRoots(
+            homePath: home.path,
+            includeTemporaryWorktrees: deepCleanupEnabled
+        )
             .map { URL(filePath: $0, directoryHint: .isDirectory) }
         let excludedTopLevel = Set([
             "Applications", "Desktop", "Documents", "Downloads", "Library", "Movies", "Music",
@@ -533,7 +547,7 @@ enum SafeCleaner {
             case .externalBackup:
                 guard let externalBackupPath else { throw DisposalError.externalDriveUnavailable }
                 root = URL(filePath: externalBackupPath, directoryHint: .isDirectory)
-                    .appending(path: "Clean My Mac Backups", directoryHint: .isDirectory)
+                    .appending(path: "AI, Leave My Mac Alone! Backups", directoryHint: .isDirectory)
                     .appending(path: batchName, directoryHint: .isDirectory)
             }
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

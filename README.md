@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/img/app-icon.png" width="92" height="92" alt="Ícone do Clean My Mac">
+  <img src="docs/img/app-icon.png" width="92" height="92" alt="Ícone do AI, Leave My Mac Alone!">
 </p>
 
-<h1 align="center">Clean My Mac</h1>
+<h1 align="center">AI, Leave My Mac Alone!</h1>
 
 <p align="center">
   <strong>Proteção autônoma de SSD para quem constrói com IA.</strong><br>
@@ -10,13 +10,13 @@
 </p>
 
 <p align="center">
-  <a href="https://luisroquette.github.io/clean-my-mac/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar Clean My Mac"></a>
-  <a href="https://github.com/luisroquette/clean-my-mac/releases/tag/v1.2.5"><img src="https://img.shields.io/badge/VERSÃO-1.2.5-201C19?style=for-the-badge" alt="Versão 1.2.5"></a>
-  <a href="https://github.com/luisroquette/clean-my-mac/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette/clean-my-mac/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
+  <a href="https://luisroquette.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
+  <a href="https://github.com/luisroquette/ai-leave-my-mac-alone/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/VERSÃO-2.0.0-201C19?style=for-the-badge" alt="Versão 2.0.0"></a>
+  <a href="https://github.com/luisroquette/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
 <p align="center">
-  <a href="https://luisroquette.github.io/clean-my-mac/"><img src="docs/img/og-card.png" alt="Clean My Mac protegendo o SSD de resíduos gerados por agentes de IA"></a>
+  <a href="https://luisroquette.github.io/ai-leave-my-mac-alone/"><img src="docs/img/og-card.png" alt="AI, Leave My Mac Alone! protegendo o SSD de resíduos gerados por agentes de IA"></a>
 </p>
 
 ## Sua IA termina a tarefa. Os gigabytes ficam.
@@ -26,7 +26,7 @@ builds. Depois da entrega, `node_modules`, `.next` e caches de ferramentas
 continuam ocupando o SSD. O problema costuma aparecer tarde: a próxima build
 falha, uma atualização para ou o macOS fica sem espaço de trabalho.
 
-Clean My Mac monitora o volume de dados a cada 30 segundos e acelera para 5
+AI, Leave My Mac Alone! monitora o volume de dados a cada 30 segundos e acelera para 5
 segundos sob pressão, sem interromper o fluxo:
 
 | 75% | 78% | 80% | 95% |
@@ -35,12 +35,12 @@ segundos sob pressão, sem interromper o fluxo:
 | Um aviso claro | Lista segura | Retry a cada 15 s | Proteções continuam ativas |
 
 <p align="center">
-  <img src="docs/img/readme-storage-control.png" alt="Modelo de decisão do Clean My Mac em 95% de uso do SSD">
+  <img src="docs/img/readme-storage-control.png" alt="Modelo de decisão do AI, Leave My Mac Alone! em 95% de uso do SSD">
 </p>
 
 ## Uma categoria feita para fluxos com IA
 
-CCleaner e utilitários genéricos fazem manutenção ampla do sistema. Clean My Mac
+CCleaner e utilitários genéricos fazem manutenção ampla do sistema. AI, Leave My Mac Alone!
 entende projetos de software: Git, worktrees, processos ativos, builds e caches
 regeneráveis. O foco não é “limpar o Mac”; é impedir que agentes de código
 consumam silenciosamente todo o SSD.
@@ -92,12 +92,18 @@ Abra **Mais opções → Preferências** e escolha:
 | Destino | Comportamento |
 |---|---|
 | **Mover para a Lixeira** | Mantém o lote recuperável; o espaço só retorna quando a Lixeira for esvaziada |
-| **Lixeira + apagar o lote do app** | Apaga somente o novo lote do Clean My Mac; itens antigos da Lixeira ficam intocados |
+| **Lixeira + apagar o lote do app** | Apaga somente o novo lote do AI, Leave My Mac Alone!; itens antigos da Lixeira ficam intocados |
 | **Backup em HD externo + apagar do Mac** | Copia e valida cada artefato; depois move o original para um lote exclusivo e apaga somente esse lote |
 
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.0.0
+
+- Renomeado de "Clean My Mac" para "AI, Leave My Mac Alone!" — identificador de pacote, log e módulos internos permanecem estáveis para não perder configurações já concedidas no macOS.
+- Novo alívio automático e manual de memória: encerra builds Next.js/tsc/webpack/vite/turbo/vitest órfãos que estouram RAM/swap, com a mesma blindagem de segurança da limpeza de disco (nunca toca processos fora da lista de alvos).
+- Painel redesenhado: régua com marcas nos limiares reais de política (75/78/80% disco, 75/90% swap) em vez de texto solto, números monoespaçados e seções com fio em vez de cards genéricos.
 
 ## O que mudou na v1.2.5
 
@@ -107,14 +113,14 @@ o original permanece recuperável e a execução falha de forma fechada.
 
 ## Instalação
 
-1. Abra a [página oficial de download](https://luisroquette.github.io/clean-my-mac/#download).
+1. Abra a [página oficial de download](https://luisroquette.github.io/ai-leave-my-mac-alone/#download).
 2. Preencha nome, WhatsApp e e-mail para liberar o ZIP gratuito.
-3. Mova **Clean My Mac.app** para `Aplicativos`.
+3. Mova **AI, Leave My Mac Alone!.app** para `Aplicativos`.
 4. Na primeira execução, rode:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Clean My Mac.app"
-open "/Applications/Clean My Mac.app"
+xattr -dr com.apple.quarantine "/Applications/AI, Leave My Mac Alone!.app"
+open "/Applications/AI, Leave My Mac Alone!.app"
 ```
 
 O build atual requer **macOS 14+**, processador **Apple silicon** e usa assinatura
@@ -153,10 +159,10 @@ Detalhes de separação de módulos e do modelo de segurança em
 ## Compilar e verificar
 
 ```bash
-git clone https://github.com/luisroquette/clean-my-mac.git
-cd clean-my-mac
+git clone https://github.com/luisroquette/ai-leave-my-mac-alone.git
+cd ai-leave-my-mac-alone
 ./Scripts/preflight.sh
-open "dist/Clean My Mac.app"
+open "dist/AI, Leave My Mac Alone!.app"
 ```
 
 O preflight canônico executa validação do `Info.plist`, testes do modelo web,
@@ -190,5 +196,5 @@ não contém cliente de rede, analytics, telemetria, conta ou backend remoto.
 
 [MIT](LICENSE) © 2026 [Luis Roquette](https://github.com/luisroquette).
 
-Clean My Mac é um software independente. Não possui afiliação, patrocínio ou
+AI, Leave My Mac Alone! é um software independente. Não possui afiliação, patrocínio ou
 endosso da MacPaw. “CleanMyMac” é marca de seu respectivo proprietário.

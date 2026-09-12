@@ -3,9 +3,9 @@ set -euo pipefail
 
 project_dir="${0:A:h:h}"
 dist_dir="$project_dir/dist"
-final_app="$dist_dir/Clean My Mac.app"
-staging_root="$(/usr/bin/mktemp -d "$project_dir/.clean-my-mac-package.XXXXXX")"
-staging_app="$staging_root/Clean My Mac.app"
+final_app="$dist_dir/AI, Leave My Mac Alone!.app"
+staging_root="$(/usr/bin/mktemp -d "$project_dir/.ai-leave-my-mac-alone-package.XXXXXX")"
+staging_app="$staging_root/AI, Leave My Mac Alone!.app"
 contents_dir="$staging_app/Contents"
 
 cd "$project_dir"
@@ -21,14 +21,14 @@ fi
 /usr/bin/codesign --verify --deep --strict "$staging_app"
 
 if [[ -e "$final_app" ]]; then
-    backup="$dist_dir/.previous-Clean-My-Mac-$(/bin/date +%Y%m%d-%H%M%S).app"
+    backup="$dist_dir/.previous-AI-Leave-My-Mac-Alone-$(/bin/date +%Y%m%d-%H%M%S).app"
     /bin/mv "$final_app" "$backup"
 fi
 /bin/mv "$staging_app" "$final_app"
 /bin/rmdir "$staging_root"
 
 if [[ "${1:-}" == "--install" ]]; then
-    install_dir="$HOME/Applications/Clean My Mac.app"
+    install_dir="$HOME/Applications/AI, Leave My Mac Alone!.app"
     /bin/mkdir -p "$HOME/Applications"
     if [[ -e "$install_dir" ]]; then
         installed_backup="$dist_dir/.installed-previous-$(/bin/date +%Y%m%d-%H%M%S).app"

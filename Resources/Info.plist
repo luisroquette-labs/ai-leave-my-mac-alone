@@ -9,19 +9,19 @@
     <key>CFBundleIdentifier</key>
     <string>com.luisroquette.clean-my-mac</string>
     <key>CFBundleDisplayName</key>
-    <string>Clean My Mac</string>
+    <string>AI, Leave My Mac Alone!</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Clean My Mac</string>
+    <string>AI, Leave My Mac Alone!</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.5</string>
+    <string>2.0.0</string>
     <key>CFBundleVersion</key>
-    <string>12</string>
+    <string>14</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>

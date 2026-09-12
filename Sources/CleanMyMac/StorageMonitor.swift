@@ -20,11 +20,26 @@ final class StorageMonitor: ObservableObject {
         didSet { defaults.set(automaticCleanupEnabled, forKey: Keys.automaticCleanup) }
     }
 
+    @Published var deepCleanupEnabled: Bool {
+        didSet {
+            defaults.set(deepCleanupEnabled, forKey: Keys.deepCleanup)
+            SafeCleaner.record("MODE limpeza profunda=\(deepCleanupEnabled)")
+        }
+    }
+
+    @Published private(set) var memorySnapshot: MemorySnapshot?
+    @Published private(set) var isRelievingMemory = false
+    @Published private(set) var lastMemoryAction = "Aguardando primeira leitura de memória…"
+    @Published var automaticMemoryReliefEnabled: Bool {
+        didSet { defaults.set(automaticMemoryReliefEnabled, forKey: Keys.automaticMemoryRelief) }
+    }
+
     private let defaults: UserDefaults
     private var monitoringTask: Task<Void, Never>?
     private var warningLatched: Bool
     private var lastCleanupAt: Date?
     private var lastCleanupMadeProgress: Bool
+    private var lastMemoryReliefAt: Date?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -34,6 +49,8 @@ final class StorageMonitor: ObservableObject {
         externalBackupPath = defaults.string(forKey: Keys.externalBackupPath)
         let cleanupEnabled = defaults.object(forKey: Keys.automaticCleanup) as? Bool ?? true
         automaticCleanupEnabled = cleanupEnabled
+        deepCleanupEnabled = defaults.bool(forKey: Keys.deepCleanup)
+        automaticMemoryReliefEnabled = defaults.object(forKey: Keys.automaticMemoryRelief) as? Bool ?? true
         defaults.set(cleanupEnabled, forKey: Keys.automaticCleanup)
         warningLatched = defaults.bool(forKey: Keys.warningLatched)
         lastCleanupAt = defaults.object(forKey: Keys.lastCleanupAt) as? Date
@@ -54,6 +71,10 @@ final class StorageMonitor: ObservableObject {
 
     var level: StorageLevel {
         StoragePolicy.level(for: snapshot?.usedFraction ?? 0)
+    }
+
+    var memoryLevel: MemoryLevel {
+        memorySnapshot.map(MemoryPolicy.level(for:)) ?? .normal
     }
 
     var menuBarSymbol: String {
@@ -80,6 +101,7 @@ final class StorageMonitor: ObservableObject {
         SafeCleaner.prepareLog()
         configureLoginItemOnFirstLaunch()
         await sampleNow()
+        await sampleMemoryNow()
         Task { await requestNotificationAuthorization() }
 
         monitoringTask = Task { [weak self] in
@@ -89,6 +111,7 @@ final class StorageMonitor: ObservableObject {
                 )
                 try? await Task.sleep(for: .seconds(interval))
                 await self?.sampleNow()
+                await self?.sampleMemoryNow()
             }
         }
     }
@@ -112,19 +135,23 @@ final class StorageMonitor: ObservableObject {
         }
     }
 
-    func cleanNow(isAutomatic: Bool = false) {
+    func cleanNow(isAutomatic: Bool = false, deepCleanup: Bool? = nil) {
         guard !isCleaning else {
             lastAction = "Uma limpeza já está em andamento."
             return
         }
+        let useDeepCleanup = deepCleanup ?? deepCleanupEnabled
         isCleaning = true
-        lastAction = isAutomatic ? "Limpeza automática iniciada…" : "Limpeza segura iniciada…"
+        lastAction = useDeepCleanup
+            ? "Limpeza profunda iniciada…"
+            : (isAutomatic ? "Limpeza automática iniciada…" : "Limpeza segura iniciada…")
 
         Task {
             let startingFraction = snapshot?.usedFraction ?? 0
             let result = await SafeCleaner.run(
                 includeNativeCaches: !isAutomatic || !StoragePolicy.isAtOrAboveHardLimit(startingFraction),
                 escalateNativeCachesAtHardLimit: isAutomatic,
+                deepCleanupEnabled: useDeepCleanup,
                 destination: cleanupDestination,
                 externalBackupPath: externalBackupPath
             )
@@ -154,11 +181,54 @@ final class StorageMonitor: ObservableObject {
                 )
             } else {
                 await notify(
-                    title: "Clean My Mac concluiu a limpeza",
+                    title: "AI, Leave My Mac Alone! concluiu a limpeza",
                     body: result.summary,
                     critical: false
                 )
             }
+        }
+    }
+
+    func sampleMemoryNow(allowAutomation: Bool = true) async {
+        guard let sample = await Task.detached(priority: .utility, operation: {
+            MemoryReliever.readSnapshot()
+        }).value else {
+            lastMemoryAction = "Falha ao ler a memória."
+            return
+        }
+        memorySnapshot = sample
+
+        guard allowAutomation, MemoryPolicy.shouldRunAutomaticRelief(
+            snapshot: sample,
+            enabled: automaticMemoryReliefEnabled,
+            isRelieving: isRelievingMemory,
+            lastReliefAt: lastMemoryReliefAt
+        ) else { return }
+
+        SafeCleaner.record("TRIGGER alívio automático de memória: swap=\(Int(sample.swapUsedFraction * 100))%")
+        await notify(
+            title: "AI, Leave My Mac Alone! aliviou a memória",
+            body: "RAM crítica detectada; encerrando builds travados.",
+            critical: true
+        )
+        relieveMemoryNow(isAutomatic: true)
+    }
+
+    func relieveMemoryNow(isAutomatic: Bool = false) {
+        guard !isRelievingMemory else {
+            lastMemoryAction = "Um alívio de memória já está em andamento."
+            return
+        }
+        isRelievingMemory = true
+        lastMemoryAction = isAutomatic ? "Alívio automático de memória iniciado…" : "Aliviando memória…"
+
+        Task {
+            let result = await MemoryReliever.run()
+            lastMemoryReliefAt = Date()
+            isRelievingMemory = false
+            await sampleMemoryNow(allowAutomation: false)
+            lastMemoryAction = result.summary
+            await notify(title: "AI, Leave My Mac Alone! concluiu o alívio de memória", body: result.summary, critical: false)
         }
     }
 
@@ -221,7 +291,7 @@ final class StorageMonitor: ObservableObject {
         ) {
             SafeCleaner.record("TRIGGER automático uso=\(sample.usedPercent)%")
             await notify(
-                title: "Clean My Mac iniciou a limpeza",
+                title: "AI, Leave My Mac Alone! iniciou a limpeza",
                 body: "O armazenamento chegou a \(sample.usedPercent)%.",
                 critical: true
             )
@@ -305,12 +375,14 @@ final class StorageMonitor: ObservableObject {
 
     private enum Keys {
         static let automaticCleanup = "automaticCleanupEnabled"
+        static let deepCleanup = "deepCleanupEnabled"
         static let warningLatched = "warningLatched"
         static let lastCleanupAt = "lastCleanupAt"
         static let lastCleanupMadeProgress = "lastCleanupMadeProgress"
         static let didConfigureLoginItem = "didConfigureLoginItem"
         static let cleanupDestination = "cleanupDestination"
         static let externalBackupPath = "externalBackupPath"
+        static let automaticMemoryRelief = "automaticMemoryReliefEnabled"
     }
 }
 

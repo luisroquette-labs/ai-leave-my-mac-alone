@@ -27,9 +27,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            "release/Clean-My-Mac-$(cat VERSION).zip" \
-            "release/Clean-My-Mac-$(cat VERSION).zip.sha256" \
-            "release/Clean-My-Mac.zip" \
+            "release/AI-Leave-My-Mac-Alone-$(cat VERSION).zip" \
+            "release/AI-Leave-My-Mac-Alone-$(cat VERSION).zip.sha256" \
+            "release/AI-Leave-My-Mac-Alone.zip" \
             --verify-tag \
             --generate-notes \
-            --title "Clean My Mac $(cat VERSION)"
+            --title "AI, Leave My Mac Alone! $(cat VERSION)"

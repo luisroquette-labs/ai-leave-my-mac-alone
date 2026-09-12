@@ -14,9 +14,15 @@ cd "$project_dir"
     print -u2 "Visible cleanup progress is missing"
     exit 1
 }
+/usr/bin/grep -Fq 'monitor.cleanNow(deepCleanup: requestedDeepCleanup)' Sources/CleanMyMac/MenuBarView.swift \
+    && /usr/bin/grep -Fq 'Button("Limpar agora")' Sources/CleanMyMac/MenuBarView.swift \
+    && /usr/bin/grep -Fq 'Button("Limpeza Profunda")' Sources/CleanMyMac/MenuBarView.swift || {
+    print -u2 "Independent normal and deep cleanup actions are missing"
+    exit 1
+}
 /usr/bin/env node Scripts/test-web-demo.mjs
 /usr/bin/env python3 Scripts/test-web-demo-e2e.py
 swift test
 ./Scripts/make-app.sh
 ./Scripts/check-public-release.sh
-/usr/bin/codesign --verify --deep --strict "dist/Clean My Mac.app"
+/usr/bin/codesign --verify --deep --strict "dist/AI, Leave My Mac Alone!.app"
