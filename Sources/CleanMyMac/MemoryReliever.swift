@@ -70,18 +70,20 @@ enum MemoryReliever {
     /// `colima stop` gracioso e apenas com `docker ps` comprovadamente vazio; nunca
     /// mata o processo da VM diretamente.
     private static func stopIdleColimaVM(processListing: String) -> Bool {
-        guard processListing.contains("com.apple.Virtualization.VirtualMachine"),
-              processListing.contains(".colima/") else { return false }
+        guard processListing.contains("com.apple.Virtualization.VirtualMachine") else { return false }
         guard let colima = firstExistingBinary(["/opt/homebrew/bin/colima", "/usr/local/bin/colima"]),
               let docker = firstExistingBinary(["/opt/homebrew/bin/docker", "/usr/local/bin/docker"]) else { return false }
         guard SafeCleaner.runCommand(colima, ["status"]).code == 0 else { return false }
-        let containers = SafeCleaner.runCommand(docker, ["ps", "-q"])
+        // contexto fixado: o default do usuário pode apontar pra outro daemon (Docker
+        // Desktop) e mascarar containers ativos do colima — falso "vazio" desligaria
+        // uma VM em uso. Contexto inexistente => erro => não desliga (fail-safe).
+        let containers = SafeCleaner.runCommand(docker, ["--context", "colima", "ps", "-q"])
         guard containers.code == 0,
               containers.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             SafeCleaner.record("MEMORY VM colima tem containers ativos; mantida ligada")
             return false
         }
-        let stop = SafeCleaner.runCommand(colima, ["stop"])
+        let stop = SafeCleaner.runCommand(colima, ["stop"], timeout: 120)
         guard stop.code == 0 else {
             SafeCleaner.record("ERROR memória: colima stop falhou (código \(stop.code))")
             return false

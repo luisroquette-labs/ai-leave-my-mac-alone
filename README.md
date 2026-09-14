@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette/ai-leave-my-mac-alone/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/VERSÃO-2.0.0-201C19?style=for-the-badge" alt="Versão 2.0.0"></a>
+  <a href="https://github.com/luisroquette/ai-leave-my-mac-alone/releases/tag/v2.0.1"><img src="https://img.shields.io/badge/VERSÃO-2.0.1-201C19?style=for-the-badge" alt="Versão 2.0.1"></a>
   <a href="https://github.com/luisroquette/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -98,6 +98,13 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.0.1
+
+- O alívio de memória agora enxerga órfãos paginados pro swap: alvo de build/dev com 2h+ de uptime é encerrado mesmo com RSS baixo (antes, o filtro de 1GB ficava cego exatamente sob pressão de swap — incidente real de 14/09/2026 com swap a 96% e 1.278 disparos sem efeito).
+- Órfãos de telemetria do Next.js (`detached-flush.js`) são encerrados sempre.
+- VM Docker (colima) ociosa é desligada com `colima stop` gracioso — apenas com `docker ps` comprovadamente vazio; com container ativo, permanece ligada.
+- Decisão de alvo extraída para política pura no Core, coberta por testes de regressão do incidente.
 
 ## O que mudou na v2.0.0
 
