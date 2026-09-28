@@ -427,3 +427,21 @@ import Testing
     #expect(message?.contains("\n") == false)
     #expect(message?.contains("\t") == false)
 }
+
+// REGRESSÃO (28/09/2026): a limpeza automática apagou 47 node_modules, inclusive
+// de worktrees em uso por sessões de agente (~8x numa sessão em 15/09) — o
+// detector de processo ativo não vê agentes sem cwd na worktree. Worktree
+// (.git é arquivo) nunca entra no lote; clone normal continua elegível.
+@Test func linkedWorktreesAreNeverCleaned() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    let worktree = root.appending(path: "worktree")
+    let clone = root.appending(path: "clone")
+    try FileManager.default.createDirectory(at: worktree, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: clone.appending(path: ".git"), withIntermediateDirectories: true)
+    try Data("gitdir: /repo/.git/worktrees/x\n".utf8).write(to: worktree.appending(path: ".git"))
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    #expect(CleanupPolicy.isLinkedWorktree(worktree.path))
+    #expect(!CleanupPolicy.isLinkedWorktree(clone.path))
+    #expect(!CleanupPolicy.isLinkedWorktree(root.appending(path: "missing").path))
+}

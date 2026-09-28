@@ -47,6 +47,14 @@ public enum CleanupPolicy {
         excludedDirectoryNames.sorted() + ["claude-*"]
     }
 
+    /// Worktree do Git (`.git` é arquivo, não pasta) nunca entra na limpeza:
+    /// agentes trabalham nelas sem deixar processo com cwd lá dentro.
+    public static func isLinkedWorktree(_ gitRoot: String) -> Bool {
+        var isDirectory: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: gitRoot + "/.git", isDirectory: &isDirectory)
+        return exists && !isDirectory.boolValue
+    }
+
     public static func isProjectActive(_ gitRoot: String, activeDirectories: [String]) -> Bool {
         let root = normalized(gitRoot)
         return activeDirectories.contains {

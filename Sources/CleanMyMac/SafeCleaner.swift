@@ -223,6 +223,10 @@ enum SafeCleaner {
                 log.append("SKIP sem Git: \(target.path)")
                 continue
             }
+            if CleanupPolicy.isLinkedWorktree(gitRoot.path) {
+                log.append("SKIP worktree Git: \(target.path)")
+                continue
+            }
             guard runCommand("/usr/bin/git", ["-C", gitRoot.path, "check-ignore", "-q", "--", target.path]).code == 0 else {
                 log.append("SKIP alvo não ignorado pelo Git: \(target.path)")
                 continue
