@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://luisroquette.github.io/ai-leave-my-mac-alone/sitemap.xml
+Sitemap: https://luisroquette-labs.github.io/ai-leave-my-mac-alone/sitemap.xml

@@ -10,13 +10,13 @@
 </p>
 
 <p align="center">
-  <a href="https://luisroquette.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette/ai-leave-my-mac-alone/releases/tag/v2.0.1"><img src="https://img.shields.io/badge/VERSÃO-2.0.1-201C19?style=for-the-badge" alt="Versão 2.0.1"></a>
-  <a href="https://github.com/luisroquette/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
+  <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.0.1"><img src="https://img.shields.io/badge/VERSÃO-2.0.1-201C19?style=for-the-badge" alt="Versão 2.0.1"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
 <p align="center">
-  <a href="https://luisroquette.github.io/ai-leave-my-mac-alone/"><img src="docs/img/og-card.png" alt="AI, Leave My Mac Alone! protegendo o SSD de resíduos gerados por agentes de IA"></a>
+  <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="docs/img/og-card.png" alt="AI, Leave My Mac Alone! protegendo o SSD de resíduos gerados por agentes de IA"></a>
 </p>
 
 ## Sua IA termina a tarefa. Os gigabytes ficam.
@@ -120,7 +120,7 @@ o original permanece recuperável e a execução falha de forma fechada.
 
 ## Instalação
 
-1. Abra a [página oficial de download](https://luisroquette.github.io/ai-leave-my-mac-alone/#download).
+1. Abra a [página oficial de download](https://luisroquette-labs.github.io/ai-leave-my-mac-alone/#download).
 2. Preencha nome, WhatsApp e e-mail para liberar o ZIP gratuito.
 3. Mova **AI, Leave My Mac Alone!.app** para `Aplicativos`.
 4. Na primeira execução, rode:
@@ -166,7 +166,7 @@ Detalhes de separação de módulos e do modelo de segurança em
 ## Compilar e verificar
 
 ```bash
-git clone https://github.com/luisroquette/ai-leave-my-mac-alone.git
+git clone https://github.com/luisroquette-labs/ai-leave-my-mac-alone.git
 cd ai-leave-my-mac-alone
 ./Scripts/preflight.sh
 open "dist/AI, Leave My Mac Alone!.app"
