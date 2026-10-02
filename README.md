@@ -178,7 +178,9 @@ pública e assinatura do aplicativo.
 
 ## Escopo de projetos
 
-A busca de artefatos cobre `~/Projects`, `~/Projetos`, `~/Developer`, `~/Code` e
+A busca de artefatos cobre `~/Projects`, `~/Projetos`, `~/Developer`, `~/Code`,
+as worktrees de agente em `~/.worktrees` e `~/.codex/worktrees` (o resto de `~/.codex`
+continua protegido) e
 pastas diretas da home que contenham `.git` ou `package.json`. Áreas pessoais do
 macOS e caminhos protegidos são excluídos antes da varredura. Worktrees de projeto
 dentro de `.claude` são atravessados somente para encontrar `.next` e `node_modules`
