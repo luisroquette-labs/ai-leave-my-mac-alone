@@ -184,6 +184,13 @@ macOS e caminhos protegidos são excluídos antes da varredura. Worktrees de pro
 dentro de `.claude` são atravessados somente para encontrar `.next` e `node_modules`
 ignorados pelo Git, grandes e sem processo ativo.
 
+Worktree do Git só entra na limpeza quando ociosa: sem commit, checkout, stage ou
+arquivo modificado (fora de `node_modules`/`.next`/`.git`) nas últimas 4 horas,
+ou na última hora se o upstream da branch já foi apagado. O terminal do agente
+pode seguir aberto por dias; vale a atividade da própria worktree. Artefato que
+outra worktree usa via symlink nunca é removido. Rodada sem progresso dobra a
+espera da próxima (5 → 10 → 20 → 30 min), mesmo acima de 80%.
+
 ## Privacidade
 
 Amostras de armazenamento, preferências e logs permanecem no Mac. O aplicativo

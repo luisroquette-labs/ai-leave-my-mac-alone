@@ -39,6 +39,7 @@ final class StorageMonitor: ObservableObject {
     private var warningLatched: Bool
     private var lastCleanupAt: Date?
     private var lastCleanupMadeProgress: Bool
+    private var noProgressStreak: Int
     private var lastMemoryReliefAt: Date?
 
     init(defaults: UserDefaults = .standard) {
@@ -58,6 +59,7 @@ final class StorageMonitor: ObservableObject {
             lastCleanupAt: lastCleanupAt,
             savedValue: defaults.object(forKey: Keys.lastCleanupMadeProgress) as? Bool
         )
+        noProgressStreak = defaults.integer(forKey: Keys.noProgressStreak)
         defaults.set(cleanupDestination.rawValue, forKey: Keys.cleanupDestination)
 
         Task { [weak self] in
@@ -160,9 +162,11 @@ final class StorageMonitor: ObservableObject {
                 removedTargets: result.removedTargets,
                 freedBytes: result.freedBytes
             )
+            noProgressStreak = lastCleanupMadeProgress ? 0 : noProgressStreak + 1
             lastCleanupAt = now
             defaults.set(now, forKey: Keys.lastCleanupAt)
             defaults.set(lastCleanupMadeProgress, forKey: Keys.lastCleanupMadeProgress)
+            defaults.set(noProgressStreak, forKey: Keys.noProgressStreak)
             isCleaning = false
             await sampleNow(allowAutomation: false)
             lastAction = result.summary
@@ -172,7 +176,8 @@ final class StorageMonitor: ObservableObject {
                 let fraction = snapshot?.usedFraction ?? StoragePolicy.hardLimit
                 let retrySeconds = Int(StoragePolicy.cleanupCooldown(
                     for: fraction,
-                    lastCleanupMadeProgress: lastCleanupMadeProgress
+                    lastCleanupMadeProgress: lastCleanupMadeProgress,
+                    noProgressStreak: noProgressStreak
                 ))
                 await notify(
                     title: "SSD acima do limite seguro",
@@ -287,7 +292,8 @@ final class StorageMonitor: ObservableObject {
             enabled: automaticCleanupEnabled,
             isCleaning: isCleaning,
             lastCleanupAt: lastCleanupAt,
-            lastCleanupMadeProgress: lastCleanupMadeProgress
+            lastCleanupMadeProgress: lastCleanupMadeProgress,
+            noProgressStreak: noProgressStreak
         ) {
             SafeCleaner.record("TRIGGER automático uso=\(sample.usedPercent)%")
             await notify(
@@ -379,6 +385,7 @@ final class StorageMonitor: ObservableObject {
         static let warningLatched = "warningLatched"
         static let lastCleanupAt = "lastCleanupAt"
         static let lastCleanupMadeProgress = "lastCleanupMadeProgress"
+        static let noProgressStreak = "noProgressStreak"
         static let didConfigureLoginItem = "didConfigureLoginItem"
         static let cleanupDestination = "cleanupDestination"
         static let externalBackupPath = "externalBackupPath"

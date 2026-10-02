@@ -76,14 +76,12 @@ import Testing
     #expect(StoragePolicy.restoredCleanupProgress(lastCleanupAt: nil, savedValue: nil))
     #expect(!StoragePolicy.restoredCleanupProgress(lastCleanupAt: now, savedValue: nil))
     #expect(StoragePolicy.restoredCleanupProgress(lastCleanupAt: now, savedValue: true))
-    #expect(StoragePolicy.cleanupCooldown(for: 0.81, lastCleanupMadeProgress: false) == 15)
-    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false) == 15)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.81, lastCleanupMadeProgress: true) == 15)
     #expect(!StoragePolicy.shouldRunAutomaticCleanup(
         usedFraction: 0.81,
         enabled: true,
         isCleaning: false,
         lastCleanupAt: now.addingTimeInterval(-14),
-        lastCleanupMadeProgress: false,
         now: now
     ))
     #expect(StoragePolicy.shouldRunAutomaticCleanup(
@@ -91,7 +89,6 @@ import Testing
         enabled: true,
         isCleaning: false,
         lastCleanupAt: now.addingTimeInterval(-15),
-        lastCleanupMadeProgress: false,
         now: now
     ))
     #expect(StoragePolicy.shouldCleanNativeCaches(
@@ -431,8 +428,8 @@ import Testing
 // REGRESSÃO (28/09/2026): a limpeza automática apagou 47 node_modules, inclusive
 // de worktrees em uso por sessões de agente (~8x numa sessão em 15/09) — o
 // detector de processo ativo não vê agentes sem cwd na worktree. Worktree
-// (.git é arquivo) nunca entra no lote; clone normal continua elegível.
-@Test func linkedWorktreesAreNeverCleaned() throws {
+// (.git é arquivo) só entra no lote quando ociosa; clone normal continua elegível.
+@Test func linkedWorktreesAreDetected() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     let worktree = root.appending(path: "worktree")
     let clone = root.appending(path: "clone")
@@ -444,4 +441,63 @@ import Testing
     #expect(CleanupPolicy.isLinkedWorktree(worktree.path))
     #expect(!CleanupPolicy.isLinkedWorktree(clone.path))
     #expect(!CleanupPolicy.isLinkedWorktree(root.appending(path: "missing").path))
+}
+
+// REGRESSÃO (02/10/2026): pular TODA worktree deixou 55 GB de node_modules de
+// trabalho já terminado acumularem até 97,6% do SSD — o terminal do agente fica
+// aberto por dias, mas a worktree em si estava parada. Ociosa >= 4h (ou 1h com
+// upstream apagado) entra no lote; atividade recente ou desconhecida, não.
+@Test func idleWorktreesBecomeEligibleButActiveOnesStayProtected() {
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    #expect(CleanupPolicy.worktreeIdleThreshold == 4 * 3_600)
+    #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: nil, now: now, upstreamGone: false))
+    #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: nil, now: now, upstreamGone: true))
+    #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(-(4 * 3_600 - 1)), now: now, upstreamGone: false))
+    #expect(CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(-4 * 3_600), now: now, upstreamGone: false))
+    #expect(CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(-5 * 86_400), now: now, upstreamGone: false))
+    #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(-3_599), now: now, upstreamGone: true))
+    #expect(CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(-3_600), now: now, upstreamGone: true))
+    #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(60), now: now, upstreamGone: false))
+}
+
+// REGRESSÃO (06/09/2026): apagar o node_modules real de uma worktree quebrou a
+// irmã cujo node_modules era symlink para ele.
+@Test func symlinkReferencedArtifactsAreProtected() {
+    let target = "/Users/x/Projects/.worktrees/a/node_modules"
+    #expect(CleanupPolicy.isReferencedBySymlink(target, symlinkDestinations: [target]))
+    #expect(CleanupPolicy.isReferencedBySymlink(target + "/", symlinkDestinations: [target]))
+    #expect(!CleanupPolicy.isReferencedBySymlink(target, symlinkDestinations: ["/Users/x/Projects/.worktrees/b/node_modules"]))
+    #expect(!CleanupPolicy.isReferencedBySymlink(target, symlinkDestinations: []))
+}
+
+// REGRESSÃO (02/10/2026): acima de 80% o cooldown fixo de 15s ignorava "sem
+// progresso" e o app rodou 195 varreduras seguidas com removidos=0.
+@Test func noProgressBacksOffEvenAtHardLimit() {
+    let now = Date(timeIntervalSince1970: 100_000)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 1) == 300)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 2) == 600)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 3) == 1_200)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 4) == 1_800)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 50) == 1_800)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 0) == 300)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.79, lastCleanupMadeProgress: false) == 300)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: true) == 15)
+    #expect(!StoragePolicy.shouldRunAutomaticCleanup(
+        usedFraction: 0.97,
+        enabled: true,
+        isCleaning: false,
+        lastCleanupAt: now.addingTimeInterval(-15),
+        lastCleanupMadeProgress: false,
+        noProgressStreak: 1,
+        now: now
+    ))
+    #expect(StoragePolicy.shouldRunAutomaticCleanup(
+        usedFraction: 0.97,
+        enabled: true,
+        isCleaning: false,
+        lastCleanupAt: now.addingTimeInterval(-300),
+        lastCleanupMadeProgress: false,
+        noProgressStreak: 1,
+        now: now
+    ))
 }

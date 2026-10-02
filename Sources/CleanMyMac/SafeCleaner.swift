@@ -223,8 +223,15 @@ enum SafeCleaner {
                 log.append("SKIP sem Git: \(target.path)")
                 continue
             }
-            if CleanupPolicy.isLinkedWorktree(gitRoot.path) {
-                log.append("SKIP worktree Git: \(target.path)")
+            if CleanupPolicy.isLinkedWorktree(gitRoot.path), !isIdleWorktree(gitRoot) {
+                log.append("SKIP worktree em uso: \(target.path)")
+                continue
+            }
+            if CleanupPolicy.isReferencedBySymlink(
+                target.resolvingSymlinksInPath().path,
+                symlinkDestinations: scanResult.symlinkDestinations
+            ) {
+                log.append("SKIP referenciado por symlink de outra worktree: \(target.path)")
                 continue
             }
             guard runCommand("/usr/bin/git", ["-C", gitRoot.path, "check-ignore", "-q", "--", target.path]).code == 0 else {
@@ -323,7 +330,7 @@ enum SafeCleaner {
     private static func artifactCandidates(
         deepCleanupEnabled: Bool,
         log: CleanupLog
-    ) -> (candidates: [URL], scanFailures: Int) {
+    ) -> (candidates: [URL], symlinkDestinations: [String], scanFailures: Int) {
         let fileManager = FileManager.default
         var roots = CleanupPolicy.artifactScanRoots(
             homePath: home.path,
@@ -352,20 +359,25 @@ enum SafeCleaner {
 
         var seen = Set<String>()
         var candidates: [URL] = []
+        var symlinkDestinations: [String] = []
         var scanFailures = 0
         for root in roots {
             let scanned = enumerateArtifacts(in: root, log: log)
             scanFailures += scanned.scanFailures
+            symlinkDestinations += scanned.symlinkDestinations
             for url in scanned.urls where seen.insert(url.path).inserted {
                 candidates.append(url)
             }
         }
-        return (candidates, scanFailures)
+        return (candidates, symlinkDestinations, scanFailures)
     }
 
-    private static func enumerateArtifacts(in root: URL, log: CleanupLog) -> (urls: [URL], scanFailures: Int) {
-        guard !CleanupPolicy.isProtected(root.path, protectedPaths: protectedPaths) else { return ([], 0) }
-        guard FileManager.default.fileExists(atPath: root.path) else { return ([], 0) }
+    private static func enumerateArtifacts(
+        in root: URL,
+        log: CleanupLog
+    ) -> (urls: [URL], symlinkDestinations: [String], scanFailures: Int) {
+        guard !CleanupPolicy.isProtected(root.path, protectedPaths: protectedPaths) else { return ([], [], 0) }
+        guard FileManager.default.fileExists(atPath: root.path) else { return ([], [], 0) }
 
         var arguments = [root.path, "-type", "d", "("]
         for (index, pattern) in CleanupPolicy.excludedDirectoryPatterns.enumerated() {
@@ -377,18 +389,56 @@ enum SafeCleaner {
             ")", "-prune", "-o", "-type", "d", "(",
             "-name", "node_modules", "-o", "-name", ".next",
             ")", "-print0", "-prune",
+            "-o", "-type", "l", "(", "-name", "node_modules", "-o", "-name", ".next", ")", "-print0",
         ]
 
         let result = runCommand("/usr/bin/find", arguments)
         if let message = scanFailureLogMessage(operation: "varredura de artefatos", path: root.path, result: result) {
             log.append(message)
-            return ([], 1)
+            return ([], [], 1)
         }
-        let urls = result.output.split(separator: "\0").compactMap { rawPath -> URL? in
+        var urls: [URL] = []
+        var symlinkDestinations: [String] = []
+        for rawPath in result.output.split(separator: "\0") {
             let url = URL(filePath: String(rawPath), directoryHint: .isDirectory)
-            return CleanupPolicy.isProtected(url.path, protectedPaths: protectedPaths) ? nil : url
+            if (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true {
+                symlinkDestinations.append(url.resolvingSymlinksInPath().path)
+            } else if !CleanupPolicy.isProtected(url.path, protectedPaths: protectedPaths) {
+                urls.append(url)
+            }
         }
-        return (urls, 0)
+        return (urls, symlinkDestinations, 0)
+    }
+
+    /// Ociosa = sem commit/checkout/stage nem arquivo modificado (fora de artefatos)
+    /// dentro da janela. Qualquer falha de leitura conta como em uso.
+    private static func isIdleWorktree(_ gitRoot: URL) -> Bool {
+        let gitDirResult = runCommand("/usr/bin/git", ["-C", gitRoot.path, "rev-parse", "--absolute-git-dir"])
+        guard gitDirResult.code == 0 else { return false }
+        let gitDir = URL(filePath: gitDirResult.output.trimmingCharacters(in: .whitespacesAndNewlines))
+        let lastGitActivity = ["HEAD", "index", "logs/HEAD"]
+            .compactMap { try? FileManager.default.attributesOfItem(atPath: gitDir.appending(path: $0).path)[.modificationDate] as? Date }
+            .max()
+
+        var upstreamGone = false
+        let headRef = runCommand("/usr/bin/git", ["-C", gitRoot.path, "symbolic-ref", "-q", "HEAD"])
+        if headRef.code == 0 {
+            let track = runCommand("/usr/bin/git", [
+                "-C", gitRoot.path, "for-each-ref", "--format=%(upstream:track)",
+                headRef.output.trimmingCharacters(in: .whitespacesAndNewlines),
+            ])
+            upstreamGone = track.code == 0 && track.output.contains("[gone]")
+        }
+        guard CleanupPolicy.isWorktreeIdle(lastActivity: lastGitActivity, now: Date(), upstreamGone: upstreamGone) else {
+            return false
+        }
+
+        let minutes = Int(CleanupPolicy.worktreeIdleThreshold(upstreamGone: upstreamGone) / 60)
+        let recentFile = runCommand("/usr/bin/find", [
+            gitRoot.path, "(", "-name", "node_modules", "-o", "-name", ".next", "-o", "-name", ".git", ")", "-prune",
+            "-o", "-mmin", "-\(minutes)", "-print", "-quit",
+        ])
+        return recentFile.code == 0 && recentFile.output.isEmpty
     }
 
     private struct DisposalSession {
