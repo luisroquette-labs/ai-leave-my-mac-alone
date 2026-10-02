@@ -16,16 +16,39 @@ public enum CleanupPolicy {
         homePath: String,
         includeTemporaryWorktrees: Bool = false
     ) -> [String] {
-        var roots = ["Projects", "Projetos", "Developer", "Code"]
+        var roots = ["Projects", "Projetos", "Developer", "Code", ".worktrees"]
             .map { URL(filePath: homePath).appending(path: $0).path }
+        roots += agentWorktreeSubtrees(homePath: homePath)
         if includeTemporaryWorktrees {
             roots.append("/private/tmp")
         }
         return roots
     }
 
-    public static func isProtected(_ path: String, protectedPaths: [String]) -> Bool {
-        isInsideWarningDefault(path) || protectedPaths.contains { pathsOverlap(path, $0) }
+    /// Worktrees de agente dentro de pasta protegida (`~/.codex`): só esta subárvore
+    /// é varrida; config, sessões e credenciais do Codex continuam protegidas.
+    public static func agentWorktreeSubtrees(homePath: String) -> [String] {
+        [URL(filePath: homePath).appending(path: ".codex/worktrees").path]
+    }
+
+    public static func isProtected(
+        _ path: String,
+        protectedPaths: [String],
+        allowedSubtrees: [String] = []
+    ) -> Bool {
+        if isInsideWarningDefault(path) { return true }
+        let carveOut = allowedSubtrees.first { isInside(path, $0) }
+        return protectedPaths.contains { protectedPath in
+            guard pathsOverlap(path, protectedPath) else { return false }
+            if let carveOut, isInside(carveOut, protectedPath) { return false }
+            return true
+        }
+    }
+
+    private static func isInside(_ path: String, _ ancestor: String) -> Bool {
+        let child = normalized(path)
+        let parent = normalized(ancestor)
+        return child == parent || child.hasPrefix(parent + "/")
     }
 
     public static func isEligibleArtifact(
