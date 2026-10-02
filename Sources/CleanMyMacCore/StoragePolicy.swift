@@ -33,6 +33,7 @@ public enum StoragePolicy {
     public static let cleanupCooldown: TimeInterval = 60
     public static let hardLimitCleanupCooldown: TimeInterval = 15
     public static let noProgressCleanupCooldown: TimeInterval = 300
+    public static let maximumNoProgressCleanupCooldown: TimeInterval = 1_800
     public static let normalMonitoringInterval: TimeInterval = 30
     public static let pressureMonitoringInterval: TimeInterval = 5
     public static let meaningfulProgressBytes: UInt64 = 100 * 1_024 * 1_024
@@ -53,25 +54,31 @@ public enum StoragePolicy {
         isCleaning: Bool,
         lastCleanupAt: Date?,
         lastCleanupMadeProgress: Bool = true,
+        noProgressStreak: Int = 1,
         now: Date = Date()
     ) -> Bool {
         guard enabled, !isCleaning, reaches(usedFraction, threshold: cleanupThreshold) else { return false }
         guard let lastCleanupAt else { return true }
         return now.timeIntervalSince(lastCleanupAt) >= cleanupCooldown(
             for: usedFraction,
-            lastCleanupMadeProgress: lastCleanupMadeProgress
+            lastCleanupMadeProgress: lastCleanupMadeProgress,
+            noProgressStreak: noProgressStreak
         )
     }
 
     public static func cleanupCooldown(
         for usedFraction: Double,
-        lastCleanupMadeProgress: Bool = true
+        lastCleanupMadeProgress: Bool = true,
+        noProgressStreak: Int = 1
     ) -> TimeInterval {
+        // Sem progresso vence o limite rígido: repetir a cada 15s uma varredura
+        // que não acha nada só ocupa I/O (195 rodadas inúteis em 02/10/2026).
+        if !lastCleanupMadeProgress {
+            let doublings = Double(min(max(noProgressStreak, 1), 8) - 1)
+            return min(noProgressCleanupCooldown * pow(2, doublings), maximumNoProgressCleanupCooldown)
+        }
         if isAtOrAboveHardLimit(usedFraction) {
             return hardLimitCleanupCooldown
-        }
-        if !lastCleanupMadeProgress {
-            return noProgressCleanupCooldown
         }
         return cleanupCooldown
     }
