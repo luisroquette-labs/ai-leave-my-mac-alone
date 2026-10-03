@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.0.1"><img src="https://img.shields.io/badge/VERSÃO-2.0.1-201C19?style=for-the-badge" alt="Versão 2.0.1"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.0"><img src="https://img.shields.io/badge/VERSÃO-2.1.0-201C19?style=for-the-badge" alt="Versão 2.1.0"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -98,6 +98,13 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.1.0
+
+- Worktrees do Git voltam a ser limpas quando ociosas: sem atividade na própria worktree há 4 horas (1 hora se a branch já foi apagada no remoto). O terminal do agente pode seguir aberto por dias — vale o que acontece dentro da worktree. Antes, toda worktree era pulada e 55 GB de `node_modules` de trabalho terminado levaram o SSD a 97,6% (02/10/2026).
+- A varredura passa a cobrir `~/.worktrees` e `~/.codex/worktrees`; o resto de `~/.codex` continua protegido.
+- Artefato que outra worktree usa via symlink nunca é removido.
+- Rodada sem progresso dobra a espera da próxima (5 → 10 → 20 → 30 min), mesmo acima de 80% — fim das varreduras repetidas a cada 15 segundos sem liberar nada.
 
 ## O que mudou na v2.0.1
 
