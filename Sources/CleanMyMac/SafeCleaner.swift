@@ -44,6 +44,14 @@ enum SafeCleaner {
     }
     private static let minimumArtifactKiB = 100 * 1024
 
+    private static func isProtected(_ path: String) -> Bool {
+        CleanupPolicy.isProtected(
+            path,
+            protectedPaths: protectedPaths,
+            allowedSubtrees: CleanupPolicy.agentWorktreeSubtrees(homePath: home.path)
+        )
+    }
+
     static func run(
         includeNativeCaches: Bool = true,
         escalateNativeCachesAtHardLimit: Bool = false,
@@ -243,7 +251,7 @@ enum SafeCleaner {
                 log.append("BLOCK processo ativo: \(target.path)")
                 continue
             }
-            guard !CleanupPolicy.isProtected(target.path, protectedPaths: protectedPaths),
+            guard !isProtected(target.path),
                   CleanupPolicy.pathsOverlap(target.path, gitRoot.path) else {
                 blocked += 1
                 log.append("BLOCK limite protegido: \(target.path)")
@@ -376,7 +384,7 @@ enum SafeCleaner {
         in root: URL,
         log: CleanupLog
     ) -> (urls: [URL], symlinkDestinations: [String], scanFailures: Int) {
-        guard !CleanupPolicy.isProtected(root.path, protectedPaths: protectedPaths) else { return ([], [], 0) }
+        guard !isProtected(root.path) else { return ([], [], 0) }
         guard FileManager.default.fileExists(atPath: root.path) else { return ([], [], 0) }
 
         var arguments = [root.path, "-type", "d", "("]
@@ -403,7 +411,7 @@ enum SafeCleaner {
             let url = URL(filePath: String(rawPath), directoryHint: .isDirectory)
             if (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true {
                 symlinkDestinations.append(url.resolvingSymlinksInPath().path)
-            } else if !CleanupPolicy.isProtected(url.path, protectedPaths: protectedPaths) {
+            } else if !isProtected(url.path) {
                 urls.append(url)
             }
         }

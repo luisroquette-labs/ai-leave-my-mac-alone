@@ -501,3 +501,29 @@ import Testing
         now: now
     ))
 }
+
+// REGRESSÃO (02/10/2026): ~/.codex/worktrees e ~/.worktrees ficavam fora da
+// varredura (pasta oculta / ~/.codex protegido) e acumularam dezenas de GB de
+// node_modules de worktrees de agente. Só a subárvore de worktrees é liberada;
+// o resto do ~/.codex continua protegido.
+@Test func agentWorktreeFoldersAreScannedButCodexStaysProtected() {
+    let home = "/Users/example"
+    let roots = CleanupPolicy.artifactScanRoots(homePath: home)
+    #expect(roots.contains("/Users/example/.codex/worktrees"))
+    #expect(roots.contains("/Users/example/.worktrees"))
+
+    let protected = ["/Users/example/.codex", "/Users/example/.claude"]
+    let allowed = CleanupPolicy.agentWorktreeSubtrees(homePath: home)
+    func isProtected(_ path: String) -> Bool {
+        CleanupPolicy.isProtected(path, protectedPaths: protected, allowedSubtrees: allowed)
+    }
+    #expect(!isProtected("/Users/example/.codex/worktrees"))
+    #expect(!isProtected("/Users/example/.codex/worktrees/swen-x/node_modules"))
+    #expect(isProtected("/Users/example/.codex"))
+    #expect(isProtected("/Users/example/.codex/sessions/node_modules"))
+    #expect(isProtected("/Users/example/.codex/worktrees-backup/node_modules"))
+    #expect(isProtected("/Users/example/.claude/worktrees/x/node_modules"))
+    #expect(isProtected("/Users/example/.codex/worktrees/a/Warning/Default/node_modules"))
+    #expect(!isProtected("/Users/example/.worktrees/sentinel/node_modules"))
+    #expect(CleanupPolicy.isProtected("/Users/example/.codex/worktrees/x", protectedPaths: protected))
+}
