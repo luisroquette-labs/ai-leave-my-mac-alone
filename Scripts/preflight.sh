@@ -26,6 +26,13 @@ cd "$project_dir"
     print -u2 "Cleanup confirmation must replace the action buttons"
     exit 1
 }
+
+/usr/bin/perl -0ne 'exit !/if isFirstSample \|\| reportResult \{\s+lastAction = "Disco verificado:/s' \
+    Sources/CleanMyMac/StorageMonitor.swift \
+    && /usr/bin/grep -Fq 'sampleNow(reportResult: true)' Sources/CleanMyMac/MenuBarView.swift || {
+    print -u2 "Routine sampling must not overwrite the last cleanup result"
+    exit 1
+}
 /usr/bin/env node Scripts/test-web-demo.mjs
 /usr/bin/env python3 Scripts/test-web-demo-e2e.py
 swift test

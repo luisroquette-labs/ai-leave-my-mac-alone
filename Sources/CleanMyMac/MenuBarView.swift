@@ -277,7 +277,7 @@ struct MenuBarView: View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Button("Verificar agora") {
-                    Task { await monitor.sampleNow() }
+                    Task { await monitor.sampleNow(reportResult: true) }
                 }
                 .frame(maxWidth: .infinity)
                 .disabled(monitor.isSampling || monitor.isCleaning)

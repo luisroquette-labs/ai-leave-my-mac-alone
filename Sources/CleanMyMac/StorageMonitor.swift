@@ -118,18 +118,21 @@ final class StorageMonitor: ObservableObject {
         }
     }
 
-    func sampleNow(allowAutomation: Bool = true) async {
+    func sampleNow(allowAutomation: Bool = true, reportResult: Bool = false) async {
         guard !isSampling else { return }
         isSampling = true
         defer { isSampling = false }
 
         do {
+            let isFirstSample = snapshot == nil
             let sample = try await Task.detached(priority: .utility) {
                 try StorageReader.read()
             }.value
             snapshot = sample
             lastUpdatedAt = Date()
-            lastAction = "Disco verificado: \(sample.usedPercent)% em uso."
+            if isFirstSample || reportResult {
+                lastAction = "Disco verificado: \(sample.usedPercent)% em uso."
+            }
             await react(to: sample, allowAutomation: allowAutomation)
         } catch {
             lastAction = "Falha ao ler o disco: \(error.localizedDescription)"
