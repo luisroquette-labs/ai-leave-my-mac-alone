@@ -184,7 +184,6 @@ enum SafeCleaner {
         defer { try? FileManager.default.removeItem(at: bunWorkspace) }
 
         let commands: [([String], [String], URL?, TimeInterval)] = [
-            ([home.appending(path: ".local/bin/uv").path, "/opt/homebrew/bin/uv", "/usr/local/bin/uv"], ["cache", "prune"], nil, 30),
             (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "clean", "--force"], nil, 120),
             ([home.appending(path: ".bun/bin/bun").path, "/opt/homebrew/bin/bun", "/usr/local/bin/bun"], ["pm", "cache", "rm"], bunWorkingDirectory, 120),
             (["/opt/homebrew/bin/deno", "/usr/local/bin/deno"], ["clean"], nil, 120),
