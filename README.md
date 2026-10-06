@@ -73,6 +73,7 @@ interface. Se o aplicativo exibe **80%**, o retry de proteção já está ativo.
 | Pode remover | Nunca remove |
 |---|---|
 | Caches de npm, uv, Bun, Deno e Homebrew | Documentos, Mesa, Downloads e mídia pessoal |
+| Builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em `/private/tmp` | Perfis de navegador, sessões Claude/Codex e temporários desconhecidos |
 | `node_modules` e `.next` com 100 MB ou mais | Fontes rastreadas ou conteúdo não ignorado pelo Git |
 | Artefatos ignorados dentro de um repositório Git | Projetos usados por qualquer processo do utilizador |
 | Somente após verificar Git e processos novamente | Lixeira, Docker, credenciais e discos externos não selecionados |

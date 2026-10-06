@@ -31,7 +31,7 @@ public enum StoragePolicy {
     public static let emergencyThreshold = 0.95
     public static let warningResetThreshold = 0.73
     public static let cleanupCooldown: TimeInterval = 60
-    public static let hardLimitCleanupCooldown: TimeInterval = 15
+    public static let hardLimitCleanupCooldown: TimeInterval = 300
     public static let noProgressCleanupCooldown: TimeInterval = 300
     public static let maximumNoProgressCleanupCooldown: TimeInterval = 1_800
     public static let normalMonitoringInterval: TimeInterval = 30
@@ -71,8 +71,8 @@ public enum StoragePolicy {
         lastCleanupMadeProgress: Bool = true,
         noProgressStreak: Int = 1
     ) -> TimeInterval {
-        // Sem progresso vence o limite rígido: repetir a cada 15s uma varredura
-        // que não acha nada só ocupa I/O (195 rodadas inúteis em 02/10/2026).
+        // Sem progresso vence o limite rígido: repetir uma varredura que não acha
+        // nada só ocupa I/O (195 rodadas inúteis em 02/10/2026).
         if !lastCleanupMadeProgress {
             let doublings = Double(min(max(noProgressStreak, 1), 8) - 1)
             return min(noProgressCleanupCooldown * pow(2, doublings), maximumNoProgressCleanupCooldown)

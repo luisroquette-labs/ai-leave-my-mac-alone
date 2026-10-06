@@ -12,17 +12,34 @@ public enum CleanupPolicy {
         return left == right || left.hasPrefix(right + "/") || right.hasPrefix(left + "/")
     }
 
-    public static func artifactScanRoots(
-        homePath: String,
-        includeTemporaryWorktrees: Bool = false
-    ) -> [String] {
+    public static func artifactScanRoots(homePath: String) -> [String] {
         var roots = ["Projects", "Projetos", "Developer", "Code", ".worktrees"]
             .map { URL(filePath: homePath).appending(path: $0).path }
         roots += agentWorktreeSubtrees(homePath: homePath)
-        if includeTemporaryWorktrees {
-            roots.append("/private/tmp")
-        }
         return roots
+    }
+
+    public static let temporaryArtifactMinimumAge: TimeInterval = 24 * 3_600
+
+    /// Somente formatos inequivocamente regeneráveis em filhos diretos de
+    /// /private/tmp. Perfis de navegador e diretórios de agentes não casam.
+    public static func isEligibleTemporaryArtifact(
+        name: String,
+        childNames: Set<String>,
+        modificationDate: Date?,
+        now: Date = Date()
+    ) -> Bool {
+        guard !name.hasPrefix("claude-"),
+              let modificationDate,
+              now.timeIntervalSince(modificationDate) >= temporaryArtifactMinimumAge else {
+            return false
+        }
+        let isXcodeOutput = childNames.contains("Build")
+            && (childNames.contains("Index.noindex") || childNames.contains("ModuleCache.noindex"))
+        let isNPMCache = childNames.contains("_cacache")
+        let isDenoCache = childNames.contains("dep_analysis_cache_v2")
+            && childNames.contains("npm")
+        return isXcodeOutput || isNPMCache || isDenoCache
     }
 
     /// Worktrees de agente dentro de pasta protegida (`~/.codex`): só esta subárvore
@@ -96,9 +113,22 @@ public enum CleanupPolicy {
 
     /// Outra worktree aponta o próprio node_modules/.next para este alvo:
     /// apagar quebraria a irmã silenciosamente.
-    public static func isReferencedBySymlink(_ target: String, symlinkDestinations: [String]) -> Bool {
+    public static func matchingSymlinkSources(
+        target: String,
+        references: [ArtifactSymlinkReference]
+    ) -> [String] {
         let resolvedTarget = normalized(target)
-        return symlinkDestinations.contains { normalized($0) == resolvedTarget }
+        return references.compactMap {
+            normalized($0.destinationPath) == resolvedTarget ? $0.sourcePath : nil
+        }
+    }
+
+    public static func shouldProtectSymlinkReference(
+        isLinkedWorktree: Bool,
+        isActive: Bool,
+        isIdle: Bool
+    ) -> Bool {
+        isActive || !isLinkedWorktree || !isIdle
     }
 
     public static func isProjectActive(_ gitRoot: String, activeDirectories: [String]) -> Bool {
@@ -128,6 +158,16 @@ public enum CleanupPolicy {
         return components.indices.dropLast().contains {
             components[$0] == "Warning" && components[components.index(after: $0)] == "Default"
         }
+    }
+}
+
+public struct ArtifactSymlinkReference: Equatable, Sendable {
+    public let sourcePath: String
+    public let destinationPath: String
+
+    public init(sourcePath: String, destinationPath: String) {
+        self.sourcePath = sourcePath
+        self.destinationPath = destinationPath
     }
 }
 

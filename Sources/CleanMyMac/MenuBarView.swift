@@ -184,7 +184,7 @@ struct MenuBarView: View {
                 Toggle("Automática em modo profundo", isOn: $monitor.deepCleanupEnabled)
                     .toggleStyle(.switch)
                     .accessibilityHint("Inclui artefatos regeneráveis de worktrees temporárias")
-                Text("Inclui somente .next e node_modules ignorados pelo Git em /private/tmp. Sessões, código e projetos ativos continuam protegidos.")
+                Text("Inclui builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em /private/tmp. Perfis, sessões, código e projetos ativos continuam protegidos.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -251,7 +251,7 @@ struct MenuBarView: View {
 
     private var cleanupConfirmationMessage: String {
         let deepScope = requestedDeepCleanup
-            ? "Também serão examinadas worktrees temporárias em /private/tmp. "
+            ? "Também serão examinados builds e caches temporários reconhecíveis com mais de 24 h em /private/tmp. "
             : ""
         switch monitor.cleanupDestination {
         case .trash:

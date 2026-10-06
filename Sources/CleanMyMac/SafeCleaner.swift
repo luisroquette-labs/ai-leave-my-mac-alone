@@ -183,18 +183,18 @@ enum SafeCleaner {
         }
         defer { try? FileManager.default.removeItem(at: bunWorkspace) }
 
-        let commands: [([String], [String], URL?)] = [
-            ([home.appending(path: ".local/bin/uv").path, "/opt/homebrew/bin/uv", "/usr/local/bin/uv"], ["cache", "clean"], nil),
-            (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "clean", "--force"], nil),
-            ([home.appending(path: ".bun/bin/bun").path, "/opt/homebrew/bin/bun", "/usr/local/bin/bun"], ["pm", "cache", "rm"], bunWorkingDirectory),
-            (["/opt/homebrew/bin/deno", "/usr/local/bin/deno"], ["clean"], nil),
-            (["/opt/homebrew/bin/brew", "/usr/local/bin/brew"], ["cleanup", "-s", "--prune=all"], nil),
+        let commands: [([String], [String], URL?, TimeInterval)] = [
+            ([home.appending(path: ".local/bin/uv").path, "/opt/homebrew/bin/uv", "/usr/local/bin/uv"], ["cache", "prune"], nil, 30),
+            (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "clean", "--force"], nil, 120),
+            ([home.appending(path: ".bun/bin/bun").path, "/opt/homebrew/bin/bun", "/usr/local/bin/bun"], ["pm", "cache", "rm"], bunWorkingDirectory, 120),
+            (["/opt/homebrew/bin/deno", "/usr/local/bin/deno"], ["clean"], nil, 120),
+            (["/opt/homebrew/bin/brew", "/usr/local/bin/brew"], ["cleanup", "-s", "--prune=all"], nil, 120),
         ]
 
-        for (locations, arguments, workingDirectory) in commands {
+        for (locations, arguments, workingDirectory, timeout) in commands {
             guard let executable = locations.first(where: FileManager.default.isExecutableFile(atPath:)) else { continue }
             guard arguments != ["pm", "cache", "rm"] || workingDirectory != nil else { continue }
-            let result = runCommand(executable, arguments, timeout: 120, currentDirectoryURL: workingDirectory)
+            let result = runCommand(executable, arguments, timeout: timeout, currentDirectoryURL: workingDirectory)
             if result.code != 0 { failures += 1 }
             log.append("CACHE \(executable) exit=\(result.code) \(result.output)")
         }
@@ -235,9 +235,10 @@ enum SafeCleaner {
                 log.append("SKIP worktree em uso: \(target.path)")
                 continue
             }
-            if CleanupPolicy.isReferencedBySymlink(
-                target.resolvingSymlinksInPath().path,
-                symlinkDestinations: scanResult.symlinkDestinations
+            if hasNonIdleSymlinkReference(
+                to: target,
+                references: scanResult.symlinkReferences,
+                activeDirectories: activeDirectories
             ) {
                 log.append("SKIP referenciado por symlink de outra worktree: \(target.path)")
                 continue
@@ -332,19 +333,30 @@ enum SafeCleaner {
             removed += 1
             log.append("REMOVED \(target.path) sizeKiB=\(sizeKiB)")
         }
+
+        if deepCleanupEnabled {
+            let temporaryResult = cleanTemporaryArtifacts(
+                activeDirectories: activeDirectories,
+                log: log,
+                disposal: &disposal
+            )
+            removed += temporaryResult.removed
+            blocked += temporaryResult.blocked
+            failed += temporaryResult.failed
+        }
         return (removed, blocked, failed)
     }
 
     private static func artifactCandidates(
         deepCleanupEnabled: Bool,
         log: CleanupLog
-    ) -> (candidates: [URL], symlinkDestinations: [String], scanFailures: Int) {
+    ) -> (candidates: [URL], symlinkReferences: [ArtifactSymlinkReference], scanFailures: Int) {
         let fileManager = FileManager.default
-        var roots = CleanupPolicy.artifactScanRoots(
-            homePath: home.path,
-            includeTemporaryWorktrees: deepCleanupEnabled
-        )
+        var roots = CleanupPolicy.artifactScanRoots(homePath: home.path)
             .map { URL(filePath: $0, directoryHint: .isDirectory) }
+        if deepCleanupEnabled {
+            roots += temporaryWorktreeRoots()
+        }
         let excludedTopLevel = Set([
             "Applications", "Desktop", "Documents", "Downloads", "Library", "Movies", "Music",
             "Pictures", "Public", "Arquivos Públicos", "Arquivos Públicos",
@@ -367,23 +379,23 @@ enum SafeCleaner {
 
         var seen = Set<String>()
         var candidates: [URL] = []
-        var symlinkDestinations: [String] = []
+        var symlinkReferences: [ArtifactSymlinkReference] = []
         var scanFailures = 0
         for root in roots {
             let scanned = enumerateArtifacts(in: root, log: log)
             scanFailures += scanned.scanFailures
-            symlinkDestinations += scanned.symlinkDestinations
+            symlinkReferences += scanned.symlinkReferences
             for url in scanned.urls where seen.insert(url.path).inserted {
                 candidates.append(url)
             }
         }
-        return (candidates, symlinkDestinations, scanFailures)
+        return (candidates, symlinkReferences, scanFailures)
     }
 
     private static func enumerateArtifacts(
         in root: URL,
         log: CleanupLog
-    ) -> (urls: [URL], symlinkDestinations: [String], scanFailures: Int) {
+    ) -> (urls: [URL], symlinkReferences: [ArtifactSymlinkReference], scanFailures: Int) {
         guard !isProtected(root.path) else { return ([], [], 0) }
         guard FileManager.default.fileExists(atPath: root.path) else { return ([], [], 0) }
 
@@ -406,16 +418,116 @@ enum SafeCleaner {
             return ([], [], 1)
         }
         var urls: [URL] = []
-        var symlinkDestinations: [String] = []
+        var symlinkReferences: [ArtifactSymlinkReference] = []
         for rawPath in result.output.split(separator: "\0") {
             let url = URL(filePath: String(rawPath), directoryHint: .isDirectory)
             if (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true {
-                symlinkDestinations.append(url.resolvingSymlinksInPath().path)
+                symlinkReferences.append(ArtifactSymlinkReference(
+                    sourcePath: url.path,
+                    destinationPath: url.resolvingSymlinksInPath().path
+                ))
             } else if !isProtected(url.path) {
                 urls.append(url)
             }
         }
-        return (urls, symlinkDestinations, 0)
+        return (urls, symlinkReferences, 0)
+    }
+
+    private static func temporaryWorktreeRoots() -> [URL] {
+        let temporary = URL(filePath: "/private/tmp", directoryHint: .isDirectory)
+        let children = (try? FileManager.default.contentsOfDirectory(
+            at: temporary,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        return children.filter {
+            let values = try? $0.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            return values?.isDirectory == true
+                && values?.isSymbolicLink != true
+                && FileManager.default.fileExists(atPath: $0.appending(path: ".git").path)
+        }
+    }
+
+    private static func hasNonIdleSymlinkReference(
+        to target: URL,
+        references: [ArtifactSymlinkReference],
+        activeDirectories: [String]
+    ) -> Bool {
+        CleanupPolicy.matchingSymlinkSources(
+            target: target.resolvingSymlinksInPath().path,
+            references: references
+        ).contains { sourcePath in
+            guard let root = gitRoot(for: URL(filePath: sourcePath)) else { return true }
+            return CleanupPolicy.shouldProtectSymlinkReference(
+                isLinkedWorktree: CleanupPolicy.isLinkedWorktree(root.path),
+                isActive: CleanupPolicy.isProjectActive(root.path, activeDirectories: activeDirectories),
+                isIdle: isIdleWorktree(root)
+            )
+        }
+    }
+
+    private static func cleanTemporaryArtifacts(
+        activeDirectories: [String],
+        log: CleanupLog,
+        disposal: inout DisposalSession
+    ) -> (removed: Int, blocked: Int, failed: Int) {
+        var removed = 0
+        var blocked = 0
+        var failed = 0
+        let fileManager = FileManager.default
+        let temporary = URL(filePath: "/private/tmp", directoryHint: .isDirectory)
+        let children = (try? fileManager.contentsOfDirectory(
+            at: temporary,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+
+        for target in children {
+            let values = try? target.resourceValues(forKeys: [
+                .isDirectoryKey, .isSymbolicLinkKey, .contentModificationDateKey,
+            ])
+            guard values?.isDirectory == true, values?.isSymbolicLink != true,
+                  let contents = try? fileManager.contentsOfDirectory(atPath: target.path),
+                  CleanupPolicy.isEligibleTemporaryArtifact(
+                      name: target.lastPathComponent,
+                      childNames: Set(contents),
+                      modificationDate: values?.contentModificationDate
+                  ) else { continue }
+            if CleanupPolicy.isProjectActive(target.path, activeDirectories: activeDirectories) {
+                blocked += 1
+                log.append("BLOCK temporário em uso: \(target.path)")
+                continue
+            }
+            guard !fileManager.fileExists(atPath: target.appending(path: ".git").path) else {
+                blocked += 1
+                log.append("BLOCK temporário contém Git: \(target.path)")
+                continue
+            }
+            let sizeResult = runCommand("/usr/bin/du", ["-sk", target.path])
+            guard sizeResult.code == 0,
+                  let sizeKiB = parseDuSizeKiB(sizeResult.output),
+                  sizeKiB >= minimumArtifactKiB else { continue }
+            guard let currentActiveDirectories = activeWorkingDirectories(),
+                  !CleanupPolicy.isProjectActive(target.path, activeDirectories: currentActiveDirectories) else {
+                blocked += 1
+                log.append("BLOCK temporário iniciou durante a varredura: \(target.path)")
+                continue
+            }
+            do {
+                _ = try disposal.stage(target, expectedBytes: UInt64(sizeKiB) * 1_024)
+                guard !fileManager.fileExists(atPath: target.path) else {
+                    failed += 1
+                    log.append("ERROR verificação pós-limpeza temporária: \(target.path)")
+                    continue
+                }
+                removed += 1
+                log.append("REMOVED temporário \(target.path) sizeKiB=\(sizeKiB)")
+            } catch {
+                failed += 1
+                log.append("ERROR destino temporário: \(target.path) \(error.localizedDescription)")
+            }
+        }
+        return (removed, blocked, failed)
     }
 
     /// Ociosa = sem commit/checkout/stage nem arquivo modificado (fora de artefatos)
