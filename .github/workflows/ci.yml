@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  web-tests:
+  preflight:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
