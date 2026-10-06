@@ -33,6 +33,11 @@ cd "$project_dir"
     print -u2 "Routine sampling must not overwrite the last cleanup result"
     exit 1
 }
+
+[[ $(/usr/bin/grep -Fc '["--no-optional-locks", "-C", gitRoot.path, "status"' Sources/CleanMyMac/SafeCleaner.swift) -eq 2 ]] || {
+    print -u2 "Cleanup verification must not refresh Git indexes and mark its own worktree active"
+    exit 1
+}
 /usr/bin/env node Scripts/test-web-demo.mjs
 /usr/bin/env python3 Scripts/test-web-demo-e2e.py
 swift test

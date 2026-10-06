@@ -289,7 +289,7 @@ enum SafeCleaner {
 
             let statusBefore = runCommand(
                 "/usr/bin/git",
-                ["-C", gitRoot.path, "status", "--porcelain=v1", "-z"]
+                ["--no-optional-locks", "-C", gitRoot.path, "status", "--porcelain=v1", "-z"]
             )
             guard statusBefore.code == 0 else {
                 blocked += 1
@@ -311,7 +311,7 @@ enum SafeCleaner {
 
             let statusAfter = runCommand(
                 "/usr/bin/git",
-                ["-C", gitRoot.path, "status", "--porcelain=v1", "-z"]
+                ["--no-optional-locks", "-C", gitRoot.path, "status", "--porcelain=v1", "-z"]
             )
             guard CleanupPolicy.isVerifiedAfterCleanup(
                 statusBefore: statusBefore.output,
