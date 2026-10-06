@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.0"><img src="https://img.shields.io/badge/VERSÃO-2.1.0-201C19?style=for-the-badge" alt="Versão 2.1.0"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.1"><img src="https://img.shields.io/badge/VERSÃO-2.1.1-201C19?style=for-the-badge" alt="Versão 2.1.1"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -101,6 +101,13 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.1.1
+
+- A limpeza de emergência agora tenta chegar abaixo de 80% em uma única rodada, avançando por todos os artefatos seguros disponíveis e informando claramente quando o alvo não pode ser atingido sem tocar dados protegidos.
+- O resultado da limpeza permanece visível após a atualização das métricas; a interface não substitui mais “quanto foi liberado” por uma simples leitura de disco.
+- A verificação de worktrees não atualiza mais o índice do Git durante a inspeção, evitando que o próprio aplicativo faça uma worktree ociosa parecer ativa.
+- A confirmação de limpeza profunda ficou explícita e separada da limpeza normal.
 
 ## O que mudou na v2.1.0
 
