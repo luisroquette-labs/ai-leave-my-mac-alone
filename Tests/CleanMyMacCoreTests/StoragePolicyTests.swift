@@ -106,6 +106,36 @@ import Testing
         escalateAtHardLimit: true,
         usedFractionAfterArtifacts: nil
     ))
+    #expect(StoragePolicy.shouldUseDeepCleanup(
+        requested: nil,
+        automaticPreference: false,
+        isAutomatic: true,
+        usedFraction: 0.80
+    ))
+    #expect(!StoragePolicy.shouldUseDeepCleanup(
+        requested: nil,
+        automaticPreference: false,
+        isAutomatic: true,
+        usedFraction: 0.79
+    ))
+    #expect(!StoragePolicy.shouldUseDeepCleanup(
+        requested: false,
+        automaticPreference: true,
+        isAutomatic: true,
+        usedFraction: 0.95
+    ))
+}
+
+@Test func cleanupReportsExactShortfallBelowHardLimit() {
+    #expect(StoragePolicy.bytesRequiredToGetBelowHardLimit(
+        StorageSnapshot(totalBytes: 1_000, availableBytes: 201)
+    ) == 0)
+    #expect(StoragePolicy.bytesRequiredToGetBelowHardLimit(
+        StorageSnapshot(totalBytes: 1_000, availableBytes: 200)
+    ) == 1)
+    #expect(StoragePolicy.bytesRequiredToGetBelowHardLimit(
+        StorageSnapshot(totalBytes: 1_000, availableBytes: 150)
+    ) == 51)
 }
 
 @Test func storageSnapshotNeverReportsNegativeUsage() {

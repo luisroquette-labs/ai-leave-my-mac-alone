@@ -83,8 +83,10 @@ confirmar que um projeto está inativo, o alvo é preservado. O Git é comparado
 antes e depois da remoção. Falhas e recriações entram no resultado da execução.
 
 > O teto de 80% é **best-effort**, mas nunca é tratado como concluído enquanto o
-> disco continuar acima dele. O aplicativo repete a limpeza a cada 15 segundos,
-> amplia a tentativa para caches nativos e mantém dados pessoais e projetos ativos protegidos.
+> disco continuar acima dele. Em emergência, o aplicativo força a varredura profunda
+> segura, amplia a tentativa para caches nativos e informa quantos bytes ainda faltam
+> liberar. As novas tentativas usam backoff de 5 a 30 minutos; dados pessoais e projetos
+> ativos continuam protegidos.
 
 ## Destino da limpeza
 
