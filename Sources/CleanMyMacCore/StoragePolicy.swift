@@ -27,7 +27,8 @@ public struct StorageSnapshot: Equatable, Sendable {
 public enum StoragePolicy {
     public static let warningThreshold = 0.75
     public static let cleanupThreshold = 0.78
-    public static let hardLimit = 0.80
+    public static let hardLimitPercent: UInt64 = 80
+    public static let hardLimit = Double(hardLimitPercent) / 100
     public static let emergencyThreshold = 0.95
     public static let warningResetThreshold = 0.73
     public static let cleanupCooldown: TimeInterval = 60
@@ -92,6 +93,30 @@ public enum StoragePolicy {
         guard escalateAtHardLimit else { return false }
         guard let usedFractionAfterArtifacts else { return true }
         return isAtOrAboveHardLimit(usedFractionAfterArtifacts)
+    }
+
+    public static func shouldUseDeepCleanup(
+        requested: Bool?,
+        automaticPreference: Bool,
+        isAutomatic: Bool,
+        usedFraction: Double
+    ) -> Bool {
+        if let requested { return requested }
+        return automaticPreference || (isAutomatic && isAtOrAboveHardLimit(usedFraction))
+    }
+
+    public static func bytesRequiredToGetBelowHardLimit(_ snapshot: StorageSnapshot) -> UInt64 {
+        guard snapshot.totalBytes > 0 else { return 0 }
+        let freePercent = 100 - hardLimitPercent
+        let minimumAvailableAtLimit = (snapshot.totalBytes / 100) * freePercent
+            + ((snapshot.totalBytes % 100) * freePercent) / 100
+        let minimumAvailable = min(
+            snapshot.totalBytes,
+            minimumAvailableAtLimit + 1
+        )
+        return minimumAvailable > snapshot.availableBytes
+            ? minimumAvailable - snapshot.availableBytes
+            : 0
     }
 
     public static func monitoringInterval(for usedFraction: Double) -> TimeInterval {

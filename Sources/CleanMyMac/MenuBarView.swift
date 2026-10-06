@@ -184,7 +184,7 @@ struct MenuBarView: View {
                 Toggle("Automática em modo profundo", isOn: $monitor.deepCleanupEnabled)
                     .toggleStyle(.switch)
                     .accessibilityHint("Inclui artefatos regeneráveis de worktrees temporárias")
-                Text("Inclui builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em /private/tmp. Perfis, sessões, código e projetos ativos continuam protegidos.")
+                Text("Inclui builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em /private/tmp. Acima de 80%, essa varredura segura é forçada; perfis, sessões, código e projetos ativos continuam protegidos.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

@@ -142,14 +142,22 @@ final class StorageMonitor: ObservableObject {
             lastAction = "Uma limpeza já está em andamento."
             return
         }
-        let useDeepCleanup = deepCleanup ?? deepCleanupEnabled
+        let startingFraction = snapshot?.usedFraction ?? 0
+        let useDeepCleanup = StoragePolicy.shouldUseDeepCleanup(
+            requested: deepCleanup,
+            automaticPreference: deepCleanupEnabled,
+            isAutomatic: isAutomatic,
+            usedFraction: startingFraction
+        )
+        if isAutomatic, useDeepCleanup, !deepCleanupEnabled {
+            SafeCleaner.record("MODE escalada profunda automática uso=\(Int((startingFraction * 100).rounded()))%")
+        }
         isCleaning = true
         lastAction = useDeepCleanup
             ? "Limpeza profunda iniciada…"
             : (isAutomatic ? "Limpeza automática iniciada…" : "Limpeza segura iniciada…")
 
         Task {
-            let startingFraction = snapshot?.usedFraction ?? 0
             let result = await SafeCleaner.run(
                 includeNativeCaches: !isAutomatic || !StoragePolicy.isAtOrAboveHardLimit(startingFraction),
                 escalateNativeCachesAtHardLimit: isAutomatic,
@@ -169,22 +177,27 @@ final class StorageMonitor: ObservableObject {
             defaults.set(noProgressStreak, forKey: Keys.noProgressStreak)
             isCleaning = false
             await sampleNow(allowAutomation: false)
-            lastAction = result.summary
-
+            let shortfall = snapshot.map(StoragePolicy.bytesRequiredToGetBelowHardLimit) ?? 0
             let percent = snapshot?.usedPercent ?? 0
-            if percent >= Int(StoragePolicy.hardLimit * 100) {
+            if shortfall > 0 {
                 let fraction = snapshot?.usedFraction ?? StoragePolicy.hardLimit
                 let retrySeconds = Int(StoragePolicy.cleanupCooldown(
                     for: fraction,
                     lastCleanupMadeProgress: lastCleanupMadeProgress,
                     noProgressStreak: noProgressStreak
                 ))
+                let missing = ByteCountFormatter.string(fromByteCount: Int64(shortfall), countStyle: .file)
+                let targetMessage = "Ainda faltam liberar \(missing) para ficar abaixo de 80%; dados protegidos foram preservados."
+                lastAction = "Faltam liberar \(missing) para ficar abaixo de 80%. \(result.summary)"
+                SafeCleaner.record("TARGET não atingida faltamBytes=\(shortfall) uso=\(percent)%")
                 await notify(
                     title: "SSD acima do limite seguro",
-                    body: "A limpeza segura terminou, mas o disco continua em \(percent)%. Nova tentativa em \(retryDescription(retrySeconds)).",
+                    body: "\(targetMessage) Nova tentativa em \(retryDescription(retrySeconds)).",
                     critical: true
                 )
             } else {
+                lastAction = result.summary
+                SafeCleaner.record("TARGET atingida uso=\(percent)%")
                 await notify(
                     title: "AI, Leave My Mac Alone! concluiu a limpeza",
                     body: result.summary,
