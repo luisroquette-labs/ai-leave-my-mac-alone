@@ -15,7 +15,7 @@ struct PreferencesView: View {
 
             Section("Modo de limpeza") {
                 Toggle("Automática em modo profundo", isOn: $monitor.deepCleanupEnabled)
-                Text("Amplia a limpeza automática para /private/tmp, mantendo o mesmo bloqueio de processos ativos, Git, links simbólicos e caminhos protegidos.")
+                Text("Amplia a limpeza automática para builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em /private/tmp, mantendo os bloqueios de segurança.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -66,7 +66,7 @@ struct PreferencesView: View {
             }
 
             Section("Proteções permanentes") {
-                Text("Somente .next e node_modules ignorados pelo Git, inativos e acima de 100 MB entram no lote. Arquivos pessoais, credenciais, projetos ativos e itens antigos da Lixeira permanecem intocados.")
+                Text("Somente .next/node_modules ignorados pelo Git e temporários reconhecíveis, inativos e acima de 100 MB entram no lote. Arquivos pessoais, perfis, credenciais, projetos ativos e itens antigos da Lixeira permanecem intocados.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

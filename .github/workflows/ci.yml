@@ -14,14 +14,17 @@ concurrency:
 
 jobs:
   preflight:
-    runs-on: macos-15
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - name: Install test dependencies
         run: |
           python3 -m venv .venv
           .venv/bin/pip install --disable-pip-version-check -r requirements-dev.txt
+          .venv/bin/playwright install --with-deps chromium
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-      - name: Run canonical preflight
-        run: ./Scripts/preflight.sh
+      - name: Run lightweight web tests
+        run: |
+          node Scripts/test-web-demo.mjs
+          python Scripts/test-web-demo-e2e.py

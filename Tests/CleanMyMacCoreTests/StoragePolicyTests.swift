@@ -44,7 +44,7 @@ import Testing
         lastCleanupAt: nil,
         now: now
     ))
-    #expect(StoragePolicy.shouldRunAutomaticCleanup(
+    #expect(!StoragePolicy.shouldRunAutomaticCleanup(
         usedFraction: 0.80,
         enabled: true,
         isCleaning: false,
@@ -55,7 +55,7 @@ import Testing
         usedFraction: 0.80,
         enabled: true,
         isCleaning: false,
-        lastCleanupAt: now.addingTimeInterval(-14),
+        lastCleanupAt: now.addingTimeInterval(-299),
         now: now
     ))
     #expect(!StoragePolicy.shouldRunAutomaticCleanup(
@@ -76,19 +76,19 @@ import Testing
     #expect(StoragePolicy.restoredCleanupProgress(lastCleanupAt: nil, savedValue: nil))
     #expect(!StoragePolicy.restoredCleanupProgress(lastCleanupAt: now, savedValue: nil))
     #expect(StoragePolicy.restoredCleanupProgress(lastCleanupAt: now, savedValue: true))
-    #expect(StoragePolicy.cleanupCooldown(for: 0.81, lastCleanupMadeProgress: true) == 15)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.81, lastCleanupMadeProgress: true) == 300)
     #expect(!StoragePolicy.shouldRunAutomaticCleanup(
         usedFraction: 0.81,
         enabled: true,
         isCleaning: false,
-        lastCleanupAt: now.addingTimeInterval(-14),
+        lastCleanupAt: now.addingTimeInterval(-299),
         now: now
     ))
     #expect(StoragePolicy.shouldRunAutomaticCleanup(
         usedFraction: 0.81,
         enabled: true,
         isCleaning: false,
-        lastCleanupAt: now.addingTimeInterval(-15),
+        lastCleanupAt: now.addingTimeInterval(-300),
         now: now
     ))
     #expect(StoragePolicy.shouldCleanNativeCaches(
@@ -185,11 +185,6 @@ import Testing
     let roots = CleanupPolicy.artifactScanRoots(homePath: "/Users/example")
     #expect(roots.contains("/Users/example/Projects"))
     #expect(!roots.contains("/private/tmp"))
-    let deepRoots = CleanupPolicy.artifactScanRoots(
-        homePath: "/Users/example",
-        includeTemporaryWorktrees: true
-    )
-    #expect(deepRoots.contains("/private/tmp"))
     #expect(CleanupPolicy.shouldExcludeDirectory(named: "claude-501"))
     #expect(CleanupPolicy.pathsOverlap("/Users/example/Projects/app/node_modules", "/Users/example/Projects/app"))
     #expect(!CleanupPolicy.pathsOverlap("/Users/example/Other/node_modules", "/Users/example/Projects/app"))
@@ -462,12 +457,36 @@ import Testing
 
 // REGRESSÃO (06/09/2026): apagar o node_modules real de uma worktree quebrou a
 // irmã cujo node_modules era symlink para ele.
-@Test func symlinkReferencedArtifactsAreProtected() {
+@Test func symlinkReferencesOnlyProtectActiveOrNonIdleWorktrees() {
     let target = "/Users/x/Projects/.worktrees/a/node_modules"
-    #expect(CleanupPolicy.isReferencedBySymlink(target, symlinkDestinations: [target]))
-    #expect(CleanupPolicy.isReferencedBySymlink(target + "/", symlinkDestinations: [target]))
-    #expect(!CleanupPolicy.isReferencedBySymlink(target, symlinkDestinations: ["/Users/x/Projects/.worktrees/b/node_modules"]))
-    #expect(!CleanupPolicy.isReferencedBySymlink(target, symlinkDestinations: []))
+    let references = [ArtifactSymlinkReference(
+        sourcePath: "/Users/x/Projects/.worktrees/b/node_modules",
+        destinationPath: target
+    )]
+    #expect(CleanupPolicy.matchingSymlinkSources(target: target, references: references) == [
+        "/Users/x/Projects/.worktrees/b/node_modules",
+    ])
+    #expect(CleanupPolicy.matchingSymlinkSources(target: "/other/node_modules", references: references).isEmpty)
+    #expect(CleanupPolicy.shouldProtectSymlinkReference(
+        isLinkedWorktree: true,
+        isActive: true,
+        isIdle: true
+    ))
+    #expect(CleanupPolicy.shouldProtectSymlinkReference(
+        isLinkedWorktree: true,
+        isActive: false,
+        isIdle: false
+    ))
+    #expect(CleanupPolicy.shouldProtectSymlinkReference(
+        isLinkedWorktree: false,
+        isActive: false,
+        isIdle: true
+    ))
+    #expect(!CleanupPolicy.shouldProtectSymlinkReference(
+        isLinkedWorktree: true,
+        isActive: false,
+        isIdle: true
+    ))
 }
 
 // REGRESSÃO (02/10/2026): acima de 80% o cooldown fixo de 15s ignorava "sem
@@ -481,7 +500,7 @@ import Testing
     #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 50) == 1_800)
     #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 0) == 300)
     #expect(StoragePolicy.cleanupCooldown(for: 0.79, lastCleanupMadeProgress: false) == 300)
-    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: true) == 15)
+    #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: true) == 300)
     #expect(!StoragePolicy.shouldRunAutomaticCleanup(
         usedFraction: 0.97,
         enabled: true,
@@ -498,6 +517,47 @@ import Testing
         lastCleanupAt: now.addingTimeInterval(-300),
         lastCleanupMadeProgress: false,
         noProgressStreak: 1,
+        now: now
+    ))
+}
+
+@Test func deepCleanupOnlyAcceptsOldRecognizableTemporaryArtifacts() {
+    let now = Date(timeIntervalSince1970: 100_000)
+    let old = now.addingTimeInterval(-CleanupPolicy.temporaryArtifactMinimumAge)
+    #expect(CleanupPolicy.isEligibleTemporaryArtifact(
+        name: "resenha-derived-data",
+        childNames: ["Build", "Index.noindex"],
+        modificationDate: old,
+        now: now
+    ))
+    #expect(CleanupPolicy.isEligibleTemporaryArtifact(
+        name: "project-npm-cache",
+        childNames: ["_cacache", "_logs"],
+        modificationDate: old,
+        now: now
+    ))
+    #expect(CleanupPolicy.isEligibleTemporaryArtifact(
+        name: "deno-cache",
+        childNames: ["dep_analysis_cache_v2", "npm"],
+        modificationDate: old,
+        now: now
+    ))
+    #expect(!CleanupPolicy.isEligibleTemporaryArtifact(
+        name: "resenha-playwright-profile",
+        childNames: ["BrowserMetrics", "Default"],
+        modificationDate: old,
+        now: now
+    ))
+    #expect(!CleanupPolicy.isEligibleTemporaryArtifact(
+        name: "claude-501",
+        childNames: ["Build", "Index.noindex"],
+        modificationDate: old,
+        now: now
+    ))
+    #expect(!CleanupPolicy.isEligibleTemporaryArtifact(
+        name: "fresh-npm-cache",
+        childNames: ["_cacache"],
+        modificationDate: now.addingTimeInterval(-(CleanupPolicy.temporaryArtifactMinimumAge - 1)),
         now: now
     ))
 }
