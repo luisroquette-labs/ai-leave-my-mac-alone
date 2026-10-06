@@ -20,13 +20,13 @@ struct MenuBarView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
+            hairline
             if confirmingCleanup && !monitor.isCleaning {
                 cleanupConfirmation
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else {
+                actions
             }
-
-            hairline
-            actions
         }
         .padding(18)
         .frame(width: 380)
