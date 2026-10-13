@@ -147,16 +147,52 @@ enum SafeCleaner {
         if !finalized {
             failedTargets += 1
         } else if destination == .deleteBatch {
-            for gitDirectory in artifactResult.gitDirectoriesToPrune {
-                let prune = runCommand(
-                    "/usr/bin/git",
-                    ["--git-dir", gitDirectory, "worktree", "prune", "--expire", "now"]
-                )
-                if prune.code != 0 {
-                    failedTargets += 1
-                    log.append("ERROR metadados de worktree: \(gitDirectory) \(prune.output)")
-                }
+            failedTargets += pruneWorktreeMetadata(artifactResult.gitDirectoriesToPrune, log: log)
+        }
+
+        // Artefatos ignorados podem ser a única razão para uma worktree limpa não
+        // entrar na primeira seleção. Depois que o lote acima é finalizado, reavaliar
+        // uma vez fecha a mesma rodada sem criar um ciclo apagar/reconstruir.
+        if finalized, deepCleanupEnabled, destination == .deleteBatch,
+           let snapshot = try? StorageReader.read(),
+           StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot) > 0,
+           let activeDirectories = activeWorkingDirectories() {
+            var recheckDisposal = DisposalSession(destination: .deleteBatch, externalBackupPath: nil)
+            let recheck = cleanReclaimableWorktrees(
+                bytesRequired: StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot),
+                activeDirectories: activeDirectories,
+                log: log,
+                disposal: &recheckDisposal
+            )
+            removedTargets += recheck.removed
+            blockedTargets += recheck.blocked
+            failedTargets += recheck.failed
+            log.append("RECHECK worktrees recuperadas=\(recheck.removed)")
+            if recheckDisposal.finalize(log: log) {
+                failedTargets += pruneWorktreeMetadata(recheck.gitDirectoriesToPrune, log: log)
+            } else {
+                failedTargets += 1
             }
+        }
+
+        if deepCleanupEnabled, destination == .deleteBatch,
+           let snapshot = try? StorageReader.read(),
+           CleanupPolicy.shouldCleanAggressiveCaches(
+               usedFraction: snapshot.usedFraction,
+               lastCleanedAt: UserDefaults.standard.object(forKey: aggressiveCacheCleanupKey) as? Date
+           ) {
+            let cacheResult = cleanRegenerableCaches(
+                bytesRequired: CleanupPolicy.bytesToStageFromAggressiveCaches(
+                    shortfall: StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot)
+                ),
+                log: log
+            )
+            removedTargets += cacheResult.removed
+            failedTargets += cacheResult.failed
+        } else if deepCleanupEnabled, destination == .deleteBatch,
+                  let snapshot = try? StorageReader.read(),
+                  StoragePolicy.isAtOrAboveHardLimit(snapshot.usedFraction) {
+            log.append("CACHE agressivo em cooldown para impedir ciclo de reconstrução")
         }
         let fractionAfterArtifacts = try? StorageReader.read().usedFraction
         let shouldCleanNativeCaches = StoragePolicy.shouldCleanNativeCaches(
@@ -183,6 +219,108 @@ enum SafeCleaner {
         )
     }
 
+    private static let aggressiveCacheCleanupKey = "lastAggressiveCacheCleanupAt"
+    private static let minimumCacheKiB = 10 * 1_024
+
+    private static func pruneWorktreeMetadata(_ gitDirectories: Set<String>, log: CleanupLog) -> Int {
+        var failures = 0
+        for gitDirectory in gitDirectories {
+            let prune = runCommand(
+                "/usr/bin/git",
+                ["--git-dir", gitDirectory, "worktree", "prune", "--expire", "now"]
+            )
+            if prune.code != 0 {
+                failures += 1
+                log.append("ERROR metadados de worktree: \(gitDirectory) \(prune.output)")
+            }
+        }
+        return failures
+    }
+
+    private static func cleanRegenerableCaches(
+        bytesRequired: UInt64,
+        log: CleanupLog
+    ) -> (removed: Int, failed: Int) {
+        guard bytesRequired > 0 else { return (0, 0) }
+        var disposal = DisposalSession(destination: .deleteBatch, externalBackupPath: nil)
+        var removed = 0
+        var failed = 0
+        var stagedBytes: UInt64 = 0
+        var candidates = CleanupPolicy.regenerableCachePaths(homePath: home.path).map {
+            URL(filePath: $0, directoryHint: .isDirectory)
+        }
+        candidates += browserCacheCandidates()
+        candidates += agentCacheArtifactCandidates()
+        candidates += CleanupPolicy.lastResortCachePaths(homePath: home.path).map {
+            URL(filePath: $0, directoryHint: .isDirectory)
+        }
+
+        var seen = Set<String>()
+        for target in candidates where stagedBytes < bytesRequired {
+            let path = target.standardizedFileURL.path
+            guard seen.insert(path).inserted,
+                  !CleanupPolicy.isProtected(path, protectedPaths: []),
+                  let values = try? target.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+                  values.isDirectory == true, values.isSymbolicLink != true else { continue }
+            let sizeResult = runCommand("/usr/bin/du", ["-sk", path])
+            guard sizeResult.code == 0, let sizeKiB = parseDuSizeKiB(sizeResult.output),
+                  sizeKiB >= minimumCacheKiB else { continue }
+            do {
+                _ = try disposal.stage(target, expectedBytes: UInt64(sizeKiB) * 1_024)
+                removed += 1
+                stagedBytes += UInt64(sizeKiB) * 1_024
+                log.append("CACHE REMOVED regenerável \(path) sizeKiB=\(sizeKiB)")
+            } catch {
+                failed += 1
+                log.append("ERROR cache regenerável: \(path) \(error.localizedDescription)")
+            }
+        }
+        guard disposal.finalize(log: log) else { return (removed, failed + 1) }
+        if removed > 0 {
+            UserDefaults.standard.set(Date(), forKey: aggressiveCacheCleanupKey)
+        }
+        log.append("CACHE agressivo removidos=\(removed) estimadoBytes=\(stagedBytes)")
+        return (removed, failed)
+    }
+
+    private static func browserCacheCandidates() -> [URL] {
+        let chromeRoot = home.appending(path: "Library/Caches/Google/Chrome", directoryHint: .isDirectory)
+        let profiles = (try? FileManager.default.contentsOfDirectory(
+            at: chromeRoot,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        return profiles.flatMap { profile in
+            CleanupPolicy.browserCacheLeafNames.map {
+                profile.appending(path: $0, directoryHint: .isDirectory)
+            }
+        }
+    }
+
+    private static func agentCacheArtifactCandidates() -> [URL] {
+        let root = home.appending(path: ".cache/codex", directoryHint: .isDirectory)
+        guard let enumerator = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+        var candidates: [URL] = []
+        let rootDepth = root.pathComponents.count
+        for case let url as URL in enumerator {
+            let depth = url.pathComponents.count - rootDepth
+            if depth > 5 {
+                enumerator.skipDescendants()
+                continue
+            }
+            guard CleanupPolicy.artifactDirectoryNames.contains(url.lastPathComponent),
+                  let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+                  values.isDirectory == true, values.isSymbolicLink != true else { continue }
+            candidates.append(url)
+            enumerator.skipDescendants()
+        }
+        return candidates
+    }
+
     private static func cleanNativeCaches(log: CleanupLog) -> Int {
         let bunWorkspace = FileManager.default.temporaryDirectory
             .appending(path: "CleanMyMac-bun-cache-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -201,11 +339,10 @@ enum SafeCleaner {
         let pnpmLocations = nvmBinaryLocations(named: "pnpm")
         let commands: [([String], [String], URL?, TimeInterval)] = [
             (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "clean", "--force"], nil, 120),
-            (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "npx", "rm"], nil, 120),
             ([home.appending(path: ".bun/bin/bun").path, "/opt/homebrew/bin/bun", "/usr/local/bin/bun"], ["pm", "cache", "rm"], bunWorkingDirectory, 120),
             (["/opt/homebrew/bin/deno", "/usr/local/bin/deno"], ["clean"], nil, 120),
             ([home.appending(path: ".local/bin/uv").path, "/opt/homebrew/bin/uv", "/usr/local/bin/uv"], ["cache", "prune"], nil, 120),
-            (pnpmLocations + ["/opt/homebrew/bin/pnpm", "/usr/local/bin/pnpm"], ["store", "prune"], nil, 120),
+            (pnpmLocations + ["/opt/homebrew/bin/pnpm", "/usr/local/bin/pnpm"], ["store", "prune"], bunWorkingDirectory, 120),
             (["/opt/homebrew/bin/brew", "/usr/local/bin/brew"], ["cleanup", "-s", "--prune=all"], nil, 120),
         ]
 

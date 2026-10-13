@@ -235,6 +235,40 @@ import Testing
     }
 }
 
+@Test func aggressiveCacheCleanupIsBoundedAndNeverTargetsProfilesOrSessions() {
+    let paths = CleanupPolicy.regenerableCachePaths(homePath: "/Users/example")
+    #expect(paths.contains("/Users/example/.npm/_npx"))
+    #expect(paths.contains("/Users/example/Library/Developer/Xcode/DerivedData"))
+    #expect(CleanupPolicy.lastResortCachePaths(homePath: "/Users/example") == [
+        "/Users/example/.cache/codex-runtimes",
+    ])
+    #expect(!paths.contains { $0.contains("Library/Application Support") })
+    #expect(!paths.contains { $0.contains("/.codex/") || $0.contains("/.claude/") })
+    #expect(!paths.contains { $0.hasSuffix("/Default") })
+    #expect(CleanupPolicy.browserCacheLeafNames.contains("Cache"))
+    #expect(!CleanupPolicy.browserCacheLeafNames.contains("Storage"))
+    #expect(!CleanupPolicy.browserCacheLeafNames.contains("Default"))
+
+    let now = Date(timeIntervalSince1970: 100_000)
+    #expect(CleanupPolicy.shouldCleanAggressiveCaches(
+        usedFraction: 0.85, lastCleanedAt: nil, now: now
+    ))
+    #expect(!CleanupPolicy.shouldCleanAggressiveCaches(
+        usedFraction: 0.79, lastCleanedAt: nil, now: now
+    ))
+    #expect(!CleanupPolicy.shouldCleanAggressiveCaches(
+        usedFraction: 0.85, lastCleanedAt: now.addingTimeInterval(-3_600), now: now
+    ))
+    #expect(CleanupPolicy.shouldCleanAggressiveCaches(
+        usedFraction: 0.85,
+        lastCleanedAt: now.addingTimeInterval(-CleanupPolicy.aggressiveCacheCooldown),
+        now: now
+    ))
+    #expect(CleanupPolicy.bytesToStageFromAggressiveCaches(shortfall: 1_000) ==
+        1_000 + CleanupPolicy.aggressiveCacheReclaimReserveBytes)
+    #expect(CleanupPolicy.bytesToStageFromAggressiveCaches(shortfall: UInt64.max) == UInt64.max)
+}
+
 @Test func cleanupPolicyKeepsArtifactsInsideTheirGitRoot() {
     let roots = CleanupPolicy.artifactScanRoots(homePath: "/Users/example")
     #expect(roots.contains("/Users/example/Projects"))
