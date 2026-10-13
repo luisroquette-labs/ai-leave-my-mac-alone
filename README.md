@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.4"><img src="https://img.shields.io/badge/VERSÃO-2.1.4-201C19?style=for-the-badge" alt="Versão 2.1.4"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.5"><img src="https://img.shields.io/badge/VERSÃO-2.1.5-201C19?style=for-the-badge" alt="Versão 2.1.5"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -32,7 +32,7 @@ segundos sob pressão, sem interromper o fluxo:
 | 75% | 78% | 80% | 95% |
 |:---:|:---:|:---:|:---:|
 | **Alerta** | **Limpeza autônoma** | **Limite protegido** | **Pressão crítica** |
-| Um aviso claro | Lista segura | Retry a cada 15 s | Proteções continuam ativas |
+| Um aviso claro | Lista segura | Retry a cada 5 min | Proteções continuam ativas |
 
 <p align="center">
   <img src="docs/img/readme-storage-control.png" alt="Modelo de decisão do AI, Leave My Mac Alone! em 95% de uso do SSD">
@@ -102,10 +102,18 @@ O backup externo aceita somente uma pasta gravável em um volume não interno. S
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
 
+## O que mudou na v2.1.5
+
+- O cooldown de caches agora vale por caminho: um cache recém-reconstruído fica protegido por 6 horas, mas outros caches seguros continuam disponíveis para restaurar o teto de 80%; recursos de último nível entram um por rodada, com nova medição entre eles.
+- Projetos ativos em `~/.cache/codex` são bloqueados, caminhos atravessados por symlink são rejeitados e uma falha ao finalizar um lote interrompe as camadas destrutivas seguintes.
+- A segunda varredura redundante de worktrees foi removida; cada rodada faz uma única seleção protegida por estado Git e processos ativos.
+- A limpeza preventiva aos 78% volta a executar de verdade, para quando recupera o déficit calculado e só usa caches nativos se ainda estiver acima de 80%; lotes interrompidos são retomados com validação estrita.
+- O alívio de memória não mata mais um build jovem só por ultrapassar 1 GB: fora a telemetria descartável, apenas processos realmente órfãos (`PPID 1`) e antigos são elegíveis.
+
 ## O que mudou na v2.1.4
 
-- A limpeza agora fecha o ciclo na mesma rodada: remove artefatos, reavalia worktrees que acabaram de ficar recuperáveis e, se ainda faltar espaço, avança por uma allowlist exata de caches regeneráveis de desenvolvimento e navegador, com margem de 2 GB contra diferenças entre tamanho estimado e espaço efetivamente recuperado.
-- Caches agressivos só entram acima de 80% e têm cooldown de 6 horas, impedindo o ciclo de apagar/recriar. Perfis, sessões, credenciais, `.env`, Graphify e `Warning/Default` continuam fora do alcance.
+- A limpeza avança por uma allowlist exata de caches regeneráveis de desenvolvimento e navegador quando os artefatos seguros não bastam, com margem de 2 GB contra diferenças entre tamanho estimado e espaço efetivamente recuperado.
+- Perfis, sessões, credenciais, `.env`, Graphify e `Warning/Default` continuam fora do alcance.
 
 ## O que mudou na v2.1.3
 

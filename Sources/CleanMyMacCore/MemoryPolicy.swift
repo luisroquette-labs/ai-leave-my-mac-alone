@@ -59,9 +59,8 @@ public enum MemoryPolicy {
 ///
 /// REGRESSÃO 14/09/2026: com o swap a 96%, o macOS pagina os processos culpados e o
 /// RSS deles desinfla (next-servers de 13 dias apareciam com ~300MB residentes e 2–3GB
-/// no swap). O filtro antigo de RSS ≥ 1GB ficava cego exatamente na hora crítica —
-/// o alívio disparou 1.278 vezes sem matar os órfãos. A idade do processo é o sinal
-/// que sobrevive à paginação: alvo de build/dev com horas de uptime é órfão.
+/// no swap). RSS e idade sozinhos não provam abandono: somente um processo adotado
+/// pelo launchd (PPID 1) e antigo é tratado como órfão.
 public enum MemoryReliefTargetPolicy {
     public static let targetPatterns = [
         "next-build", "tsc --", "webpack", "vite build",
@@ -73,14 +72,13 @@ public enum MemoryReliefTargetPolicy {
     ]
     /// Lixo puro: telemetria do Next.js que deveria durar segundos e fica órfã aos montes.
     public static let alwaysKillPatterns = ["next/dist/telemetry/detached-flush.js"]
-    public static let minimumRSSKiB: UInt64 = 1_000_000 // 1GB
     public static let orphanUptimeSeconds: TimeInterval = 2 * 3_600
 
-    public static func shouldKill(command: String, rssKiB: UInt64, uptimeSeconds: TimeInterval?) -> Bool {
+    public static func shouldKill(command: String, parentPID: Int32, uptimeSeconds: TimeInterval?) -> Bool {
         guard !neverKill.contains(where: { command.contains($0) }) else { return false }
         if alwaysKillPatterns.contains(where: { command.contains($0) }) { return true }
-        guard targetPatterns.contains(where: { command.contains($0) }) else { return false }
-        if rssKiB >= minimumRSSKiB { return true }
+        guard parentPID == 1,
+              targetPatterns.contains(where: { command.contains($0) }) else { return false }
         guard let uptimeSeconds else { return false }
         return uptimeSeconds >= orphanUptimeSeconds
     }

@@ -47,32 +47,36 @@ import Testing
 @Test func memoryReliefKillsSwappedOutOrphansByAge() {
     // caso real: next-server com 13 dias de uptime e RSS desinflado a ~300MB pelo swap
     #expect(MemoryReliefTargetPolicy.shouldKill(
-        command: "next-server (v16.3.0)", rssKiB: 300_000, uptimeSeconds: 13 * 86_400
+        command: "next-server (v16.3.0)", parentPID: 1, uptimeSeconds: 13 * 86_400
     ))
     // dev server jovem e leve segue vivo (sessão ativa de trabalho)
     #expect(!MemoryReliefTargetPolicy.shouldKill(
-        command: "next-server (v16.3.4)", rssKiB: 300_000, uptimeSeconds: 600
+        command: "next-server (v16.3.4)", parentPID: 1, uptimeSeconds: 600
     ))
-    // comportamento antigo preservado: build jovem que estoura 1GB morre
-    #expect(MemoryReliefTargetPolicy.shouldKill(
-        command: "next-build (v16.3.4)", rssKiB: 1_200_000, uptimeSeconds: 300
-    ))
-    // sem etime legível, só o critério de RSS decide (comportamento antigo)
+    // regressão 13/10/2026: RSS alto não autoriza matar build jovem e ativo
     #expect(!MemoryReliefTargetPolicy.shouldKill(
-        command: "next-server (v16.3.4)", rssKiB: 300_000, uptimeSeconds: nil
+        command: "next-build (v16.3.4)", parentPID: 44, uptimeSeconds: 300
+    ))
+    // idade alta também não basta quando o processo ainda tem um pai ativo
+    #expect(!MemoryReliefTargetPolicy.shouldKill(
+        command: "tsc --noEmit", parentPID: 44, uptimeSeconds: 13 * 86_400
+    ))
+    // sem etime legível, o processo é preservado
+    #expect(!MemoryReliefTargetPolicy.shouldKill(
+        command: "next-server (v16.3.4)", parentPID: 1, uptimeSeconds: nil
     ))
     // órfão de telemetria do Next.js morre sempre, mesmo pequeno e jovem
     #expect(MemoryReliefTargetPolicy.shouldKill(
         command: "/usr/local/bin/node /x/node_modules/next/dist/telemetry/detached-flush.js dev /x",
-        rssKiB: 10_000, uptimeSeconds: 30
+        parentPID: 44, uptimeSeconds: 30
     ))
     // neverKill vence qualquer critério
     #expect(!MemoryReliefTargetPolicy.shouldKill(
-        command: "claude.exe next-server", rssKiB: 9_000_000, uptimeSeconds: 90_000
+        command: "claude.exe next-server", parentPID: 1, uptimeSeconds: 90_000
     ))
     // processo fora dos padrões nunca é alvo, por maior e mais velho que seja
     #expect(!MemoryReliefTargetPolicy.shouldKill(
-        command: "/usr/sbin/fseventsd", rssKiB: 5_000_000, uptimeSeconds: 900_000
+        command: "/usr/sbin/fseventsd", parentPID: 1, uptimeSeconds: 900_000
     ))
 }
 
@@ -88,6 +92,24 @@ import Testing
     #expect(MemoryReliefTargetPolicy.parseEtime("") == nil)
     #expect(MemoryReliefTargetPolicy.parseEtime("abc") == nil)
     #expect(MemoryReliefTargetPolicy.parseEtime("1:2:3:4") == nil)
+}
+
+@Test func memoryReliefRevalidatesProcessIdentityBeforeSignals() {
+    #expect(MemoryReliever.processIdentityOutputMatches(
+        "  1 node /tmp/app/node_modules/.bin/tsc --noEmit\n",
+        parentPID: 1,
+        command: "node /tmp/app/node_modules/.bin/tsc --noEmit"
+    ))
+    #expect(!MemoryReliever.processIdentityOutputMatches(
+        " 44 node /tmp/app/node_modules/.bin/tsc --noEmit\n",
+        parentPID: 1,
+        command: "node /tmp/app/node_modules/.bin/tsc --noEmit"
+    ))
+    #expect(!MemoryReliever.processIdentityOutputMatches(
+        "  1 node /tmp/other.js\n",
+        parentPID: 1,
+        command: "node /tmp/app/node_modules/.bin/tsc --noEmit"
+    ))
 }
 
 @Test func memorySnapshotSwapFraction() {

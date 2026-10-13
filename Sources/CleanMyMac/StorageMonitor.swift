@@ -162,7 +162,7 @@ final class StorageMonitor: ObservableObject {
 
         Task {
             let result = await SafeCleaner.run(
-                includeNativeCaches: !isAutomatic || !StoragePolicy.isAtOrAboveHardLimit(startingFraction),
+                includeNativeCaches: !isAutomatic,
                 escalateNativeCachesAtHardLimit: isAutomatic,
                 deepCleanupEnabled: useDeepCleanup,
                 destination: cleanupDestination,

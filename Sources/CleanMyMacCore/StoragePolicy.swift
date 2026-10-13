@@ -91,8 +91,8 @@ public enum StoragePolicy {
     ) -> Bool {
         if requested { return true }
         guard escalateAtHardLimit else { return false }
-        guard let usedFractionAfterArtifacts else { return true }
-        return isAtOrAboveHardLimit(usedFractionAfterArtifacts)
+        guard let usedFractionAfterArtifacts else { return false }
+        return usedFractionAfterArtifacts >= hardLimit
     }
 
     public static func shouldUseDeepCleanup(

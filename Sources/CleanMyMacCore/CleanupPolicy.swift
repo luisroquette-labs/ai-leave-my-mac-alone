@@ -41,7 +41,10 @@ public enum CleanupPolicy {
         "Library/Caches/Codex/Default/Partitions/codex-browser-app/Cache",
         "Library/Caches/Codex/Default/Partitions/codex-browser-app/Code Cache",
     ]
-    public static let lastResortCacheRelativePaths = [".cache/codex-runtimes"]
+    public static let lastResortCacheRelativePaths = [
+        "Library/pnpm/store",
+        ".cache/codex-runtimes",
+    ]
     public static let browserCacheLeafNames = ["Cache", "Code Cache", "GPUCache", "image_cache"]
     private static let excludedDirectoryNames = Set([
         ".git", ".codex", ".npm", ".npm-global", ".9router", ".vscode",
@@ -171,19 +174,41 @@ public enum CleanupPolicy {
         }
     }
 
-    public static func shouldCleanAggressiveCaches(
-        usedFraction: Double,
+    public static func shouldCleanAggressiveCachePath(
         lastCleanedAt: Date?,
         now: Date = Date()
     ) -> Bool {
-        guard StoragePolicy.isAtOrAboveHardLimit(usedFraction) else { return false }
         guard let lastCleanedAt else { return true }
-        return now.timeIntervalSince(lastCleanedAt) >= aggressiveCacheCooldown
+        let elapsed = now.timeIntervalSince(lastCleanedAt)
+        return elapsed < 0 || elapsed >= aggressiveCacheCooldown
+    }
+
+    public static func isSafeCacheCandidate(path: String, resolvedPath: String) -> Bool {
+        normalized(path) == normalized(resolvedPath)
+            && !isInsideWarningDefault(path)
+            && !isInsideWarningDefault(resolvedPath)
+    }
+
+    public static func isOwnedDeleteBatch(path: String, trashRoot: String) -> Bool {
+        let candidate = URL(filePath: path).standardizedFileURL
+        let trash = URL(filePath: trashRoot, directoryHint: .isDirectory).standardizedFileURL
+        let prefix = "CleanMyMac-DeleteBatch-"
+        let name = candidate.lastPathComponent
+        let suffix = name.hasPrefix(prefix) ? name.dropFirst(prefix.count) : ""
+        return candidate.deletingLastPathComponent().path == trash.path
+            && !suffix.isEmpty
+            && suffix.unicodeScalars.allSatisfy {
+                CharacterSet.alphanumerics.contains($0) || $0 == "-"
+            }
     }
 
     public static func bytesToStageFromAggressiveCaches(shortfall: UInt64) -> UInt64 {
         let (total, overflow) = shortfall.addingReportingOverflow(aggressiveCacheReclaimReserveBytes)
         return overflow ? UInt64.max : total
+    }
+
+    public static func reachedCleanupTarget(bytesRequired: UInt64, stagedBytes: UInt64) -> Bool {
+        bytesRequired > 0 && stagedBytes >= bytesRequired
     }
 
     public static func shouldExcludeDirectory(named name: String) -> Bool {
@@ -227,7 +252,12 @@ public enum CleanupPolicy {
         lastActivity: Date?,
         now: Date = Date()
     ) -> Bool {
-        guard isLinkedWorktree, hasBranch, isClean, !isActive, let lastActivity else { return false }
+        isLinkedWorktree && hasBranch && isClean && !isActive
+            && isReclaimableWorktreeOldEnough(lastActivity: lastActivity, now: now)
+    }
+
+    public static func isReclaimableWorktreeOldEnough(lastActivity: Date?, now: Date = Date()) -> Bool {
+        guard let lastActivity else { return false }
         return now.timeIntervalSince(lastActivity) >= reclaimableWorktreeIdleThreshold
     }
 
