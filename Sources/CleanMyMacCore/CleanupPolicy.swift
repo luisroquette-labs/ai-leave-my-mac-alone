@@ -4,6 +4,9 @@ public enum CleanupPolicy {
     public static let artifactDirectoryNames = Set([
         "node_modules", ".next", ".build", ".turbo", ".venv", "DerivedData", "dist",
     ])
+    public static let regenerableIgnoredNames = Set([
+        "tsconfig.tsbuildinfo", "next-env.d.ts", ".swc", "playwright-report", "test-results", "coverage",
+    ])
     private static let excludedDirectoryNames = Set([
         ".git", ".codex", ".npm", ".npm-global", ".9router", ".vscode",
         ".Trash", "Library", "Arquivos Públicos", "Arquivos Públicos",
@@ -113,7 +116,10 @@ public enum CleanupPolicy {
 
     public static func hasOnlyRegenerableIgnoredPaths(_ paths: [String]) -> Bool {
         paths.allSatisfy { path in
-            path.split(separator: "/").contains { artifactDirectoryNames.contains(String($0)) }
+            path.split(separator: "/").contains {
+                let component = String($0)
+                return artifactDirectoryNames.contains(component) || regenerableIgnoredNames.contains(component)
+            }
         }
     }
 

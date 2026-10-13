@@ -227,9 +227,12 @@ import Testing
         name: ".venv", sizeKiB: 100, isSymbolicLink: true, minimumKiB: 100
     ))
     #expect(CleanupPolicy.hasOnlyRegenerableIgnoredPaths([
-        "node_modules/", "apps/web/.next/", ".build/",
+        "node_modules/", "apps/web/.next/", ".build/", "tsconfig.tsbuildinfo",
+        "next-env.d.ts", ".swc/", "playwright-report/", "test-results/", "coverage/",
     ]))
-    #expect(!CleanupPolicy.hasOnlyRegenerableIgnoredPaths([".env", "graphify-out/"]))
+    for protectedPath in [".env", ".env.local", ".vercel/", ".qlaude/", "graphify-out/", "outputs/"] {
+        #expect(!CleanupPolicy.hasOnlyRegenerableIgnoredPaths([protectedPath]))
+    }
 }
 
 @Test func cleanupPolicyKeepsArtifactsInsideTheirGitRoot() {

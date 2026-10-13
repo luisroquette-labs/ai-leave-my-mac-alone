@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.2"><img src="https://img.shields.io/badge/VERSÃO-2.1.2-201C19?style=for-the-badge" alt="Versão 2.1.2"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.3"><img src="https://img.shields.io/badge/VERSÃO-2.1.3-201C19?style=for-the-badge" alt="Versão 2.1.3"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -101,6 +101,10 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.1.3
+
+- Worktrees limpas com metadados gerados por TypeScript, Next.js, SWC e testes deixam de ser preservadas por engano, permitindo perseguir o teto de 80% sem apagar `.env`, `.vercel`, Graphify, saídas de agentes ou trabalho ativo.
 
 ## O que mudou na v2.1.2
 
