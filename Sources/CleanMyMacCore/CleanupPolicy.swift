@@ -7,6 +7,42 @@ public enum CleanupPolicy {
     public static let regenerableIgnoredNames = Set([
         "tsconfig.tsbuildinfo", "next-env.d.ts", ".swc", "playwright-report", "test-results", "coverage",
     ])
+    public static let aggressiveCacheCooldown: TimeInterval = 6 * 3_600
+    public static let aggressiveCacheReclaimReserveBytes: UInt64 = 2 * 1_024 * 1_024 * 1_024
+    public static let regenerableCacheRelativePaths = [
+        ".npm/_npx",
+        "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle",
+        "Library/Caches/ms-playwright",
+        "Library/Caches/pip",
+        "Library/Caches/colima",
+        "Library/Caches/pnpm",
+        "Library/Caches/node-gyp",
+        "Library/Caches/ffmpeg-static-nodejs",
+        "Library/Caches/org.swift.swiftpm",
+        "Library/Caches/Homebrew",
+        "Library/Caches/claude-cli-nodejs",
+        "Library/Developer/Xcode/DerivedData",
+        "Library/Developer/Xcode/DocumentationCache",
+        "Library/Developer/Xcode/iOS DeviceSupport",
+        ".cache/uv",
+        ".cache/whisper",
+        ".cache/huggingface",
+        ".cache/swen-edge-deno",
+        ".cache/gh",
+        ".cache/codeburn",
+        ".cache/cycles",
+        ".cache/node",
+        "Library/Caches/Codex/Playwright",
+        "Library/Caches/Google/Chrome-headless",
+        "Library/Caches/Comet/Default/Cache",
+        "Library/Caches/Comet/Default/Code Cache",
+        "Library/Caches/Codex/Default/Cache",
+        "Library/Caches/Codex/Default/Code Cache",
+        "Library/Caches/Codex/Default/Partitions/codex-browser-app/Cache",
+        "Library/Caches/Codex/Default/Partitions/codex-browser-app/Code Cache",
+    ]
+    public static let lastResortCacheRelativePaths = [".cache/codex-runtimes"]
+    public static let browserCacheLeafNames = ["Cache", "Code Cache", "GPUCache", "image_cache"]
     private static let excludedDirectoryNames = Set([
         ".git", ".codex", ".npm", ".npm-global", ".9router", ".vscode",
         ".Trash", "Library", "Arquivos Públicos", "Arquivos Públicos",
@@ -121,6 +157,33 @@ public enum CleanupPolicy {
                 return artifactDirectoryNames.contains(component) || regenerableIgnoredNames.contains(component)
             }
         }
+    }
+
+    public static func regenerableCachePaths(homePath: String) -> [String] {
+        regenerableCacheRelativePaths.map {
+            URL(filePath: homePath, directoryHint: .isDirectory).appending(path: $0).standardizedFileURL.path
+        }
+    }
+
+    public static func lastResortCachePaths(homePath: String) -> [String] {
+        lastResortCacheRelativePaths.map {
+            URL(filePath: homePath, directoryHint: .isDirectory).appending(path: $0).standardizedFileURL.path
+        }
+    }
+
+    public static func shouldCleanAggressiveCaches(
+        usedFraction: Double,
+        lastCleanedAt: Date?,
+        now: Date = Date()
+    ) -> Bool {
+        guard StoragePolicy.isAtOrAboveHardLimit(usedFraction) else { return false }
+        guard let lastCleanedAt else { return true }
+        return now.timeIntervalSince(lastCleanedAt) >= aggressiveCacheCooldown
+    }
+
+    public static func bytesToStageFromAggressiveCaches(shortfall: UInt64) -> UInt64 {
+        let (total, overflow) = shortfall.addingReportingOverflow(aggressiveCacheReclaimReserveBytes)
+        return overflow ? UInt64.max : total
     }
 
     public static func shouldExcludeDirectory(named name: String) -> Bool {

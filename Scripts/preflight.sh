@@ -34,6 +34,12 @@ cd "$project_dir"
     exit 1
 }
 
+! /usr/bin/grep -Fq '["cache", "npx", "rm"]' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq '["store", "prune"], bunWorkingDirectory' Sources/CleanMyMac/SafeCleaner.swift || {
+    print -u2 "Native cache cleanup contains a known-invalid command or unsafe pnpm working directory"
+    exit 1
+}
+
 [[ $(/usr/bin/grep -Fc '["--no-optional-locks", "-C", gitRoot.path, "status"' Sources/CleanMyMac/SafeCleaner.swift) -eq 2 ]] || {
     print -u2 "Cleanup verification must not refresh Git indexes and mark its own worktree active"
     exit 1
