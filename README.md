@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.1"><img src="https://img.shields.io/badge/VERSÃO-2.1.1-201C19?style=for-the-badge" alt="Versão 2.1.1"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.2"><img src="https://img.shields.io/badge/VERSÃO-2.1.2-201C19?style=for-the-badge" alt="Versão 2.1.2"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -74,7 +74,7 @@ interface. Se o aplicativo exibe **80%**, o retry de proteção já está ativo.
 |---|---|
 | Caches de npm, Bun, Deno e Homebrew | Documentos, Mesa, Downloads e mídia pessoal |
 | Builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em `/private/tmp` | Perfis de navegador, sessões Claude/Codex e temporários desconhecidos |
-| `node_modules` e `.next` com 100 MB ou mais | Fontes rastreadas ou conteúdo não ignorado pelo Git |
+| `node_modules`, `.next`, `.build`, `.turbo`, `.venv`, `DerivedData` e `dist` com 100 MB ou mais | Worktrees sujas, ativas, recentes, sem branch ou com ignorados desconhecidos |
 | Artefatos ignorados dentro de um repositório Git | Projetos usados por qualquer processo do utilizador |
 | Somente após verificar Git e processos novamente | Lixeira, Docker, credenciais e discos externos não selecionados |
 
@@ -101,6 +101,13 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.1.2
+
+- Sob pressão de 80% ou mais, worktrees inteiras podem ser recuperadas somente quando têm branch preservada no Git, estão limpas, inativas há 24 horas, sem processo ativo e contêm apenas ignorados regeneráveis conhecidos.
+- A busca cobre também contêineres `*-worktrees` e `.worktrees` dentro dos projetos, atacando o acúmulo real de dezenas de GB que a limpeza limitada a `node_modules`/`.next` não alcançava.
+- Builds Swift/Xcode, Turbo, ambientes virtuais e `dist` ignorados entram na política segura; npm/npx, uv e pnpm usam os próprios comandos oficiais de poda.
+- `.env`, Graphify local, caminhos `Warning/Default`, worktrees sujas/ativas/recentes e sessões Claude/Codex continuam bloqueados.
 
 ## O que mudou na v2.1.1
 
@@ -203,12 +210,17 @@ macOS e caminhos protegidos são excluídos antes da varredura. Worktrees de pro
 dentro de `.claude` são atravessados somente para encontrar `.next` e `node_modules`
 ignorados pelo Git, grandes e sem processo ativo.
 
-Worktree do Git só entra na limpeza quando ociosa: sem commit, checkout, stage ou
+Artefatos de uma worktree do Git só entram na limpeza quando ela está ociosa: sem commit, checkout, stage ou
 arquivo modificado (fora de `node_modules`/`.next`/`.git`) nas últimas 4 horas,
 ou na última hora se o upstream da branch já foi apagado. O terminal do agente
 pode seguir aberto por dias; vale a atividade da própria worktree. Artefato que
 outra worktree usa via symlink nunca é removido. Rodada sem progresso dobra a
 espera da próxima (5 → 10 → 20 → 30 min), mesmo acima de 80%.
+
+Acima de 80%, a worktree inteira só pode entrar no lote exato após 24 horas sem
+atividade, com branch preservada, Git limpo, nenhum processo ativo e apenas
+ignorados regeneráveis reconhecidos. Qualquer `.env`, saída Graphify ou ignorado
+desconhecido preserva a worktree completa.
 
 ## Privacidade
 

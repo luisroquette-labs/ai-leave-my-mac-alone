@@ -121,7 +121,8 @@ enum SafeCleaner {
         destination: CleanupDestination,
         externalBackupPath: String?
     ) -> CleanupResult {
-        let before = (try? StorageReader.read().availableBytes) ?? 0
+        let startingSnapshot = try? StorageReader.read()
+        let before = startingSnapshot?.availableBytes ?? 0
         var removedTargets = 0
         var blockedTargets = 0
         var failedTargets = 0
@@ -134,14 +135,28 @@ enum SafeCleaner {
         )
         let artifactResult = cleanGeneratedArtifacts(
             deepCleanupEnabled: deepCleanupEnabled,
+            bytesRequired: startingSnapshot.map(StoragePolicy.bytesRequiredToGetBelowHardLimit) ?? 0,
+            destination: destination,
             log: log,
             disposal: &disposal
         )
         removedTargets += artifactResult.removed
         blockedTargets += artifactResult.blocked
         failedTargets += artifactResult.failed
-        if !disposal.finalize(log: log) {
+        let finalized = disposal.finalize(log: log)
+        if !finalized {
             failedTargets += 1
+        } else if destination == .deleteBatch {
+            for gitDirectory in artifactResult.gitDirectoriesToPrune {
+                let prune = runCommand(
+                    "/usr/bin/git",
+                    ["--git-dir", gitDirectory, "worktree", "prune", "--expire", "now"]
+                )
+                if prune.code != 0 {
+                    failedTargets += 1
+                    log.append("ERROR metadados de worktree: \(gitDirectory) \(prune.output)")
+                }
+            }
         }
         let fractionAfterArtifacts = try? StorageReader.read().usedFraction
         let shouldCleanNativeCaches = StoragePolicy.shouldCleanNativeCaches(
@@ -183,10 +198,14 @@ enum SafeCleaner {
         }
         defer { try? FileManager.default.removeItem(at: bunWorkspace) }
 
+        let pnpmLocations = nvmBinaryLocations(named: "pnpm")
         let commands: [([String], [String], URL?, TimeInterval)] = [
             (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "clean", "--force"], nil, 120),
+            (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "npx", "rm"], nil, 120),
             ([home.appending(path: ".bun/bin/bun").path, "/opt/homebrew/bin/bun", "/usr/local/bin/bun"], ["pm", "cache", "rm"], bunWorkingDirectory, 120),
             (["/opt/homebrew/bin/deno", "/usr/local/bin/deno"], ["clean"], nil, 120),
+            ([home.appending(path: ".local/bin/uv").path, "/opt/homebrew/bin/uv", "/usr/local/bin/uv"], ["cache", "prune"], nil, 120),
+            (pnpmLocations + ["/opt/homebrew/bin/pnpm", "/usr/local/bin/pnpm"], ["store", "prune"], nil, 120),
             (["/opt/homebrew/bin/brew", "/usr/local/bin/brew"], ["cleanup", "-s", "--prune=all"], nil, 120),
         ]
 
@@ -200,19 +219,53 @@ enum SafeCleaner {
         return failures
     }
 
+    private static func nvmBinaryLocations(named name: String) -> [String] {
+        let versions = home.appending(path: ".nvm/versions/node", directoryHint: .isDirectory)
+        return ((try? FileManager.default.contentsOfDirectory(
+            at: versions,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        )) ?? []).map { $0.appending(path: "bin/\(name)").path }
+    }
+
     private static func cleanGeneratedArtifacts(
         deepCleanupEnabled: Bool,
+        bytesRequired: UInt64,
+        destination: CleanupDestination,
         log: CleanupLog,
         disposal: inout DisposalSession
-    ) -> (removed: Int, blocked: Int, failed: Int) {
+    ) -> (removed: Int, blocked: Int, failed: Int, gitDirectoriesToPrune: Set<String>) {
         var removed = 0
         var blocked = 0
         var failed = 0
+        var gitDirectoriesToPrune = Set<String>()
         do {
             try disposal.validate()
         } catch {
             log.append("ERROR destino indisponível: \(error.localizedDescription)")
-            return (0, 0, 1)
+            return (0, 0, 1, [])
+        }
+        guard let activeDirectories = activeWorkingDirectories() else {
+            log.append("BLOCK inspeção de processos indisponível")
+            return (0, 0, 0, [])
+        }
+        var stagedBytes: UInt64 = 0
+        if deepCleanupEnabled, destination == .deleteBatch, bytesRequired > 0 {
+            let worktreeResult = cleanReclaimableWorktrees(
+                bytesRequired: bytesRequired,
+                activeDirectories: activeDirectories,
+                log: log,
+                disposal: &disposal
+            )
+            removed += worktreeResult.removed
+            blocked += worktreeResult.blocked
+            failed += worktreeResult.failed
+            stagedBytes += worktreeResult.stagedBytes
+            gitDirectoriesToPrune.formUnion(worktreeResult.gitDirectoriesToPrune)
+        }
+        if stagedBytes >= bytesRequired {
+            log.append("SCAN artefatos dispensada: worktrees recuperam o déficit estimado")
+            return (removed, blocked, failed, gitDirectoriesToPrune)
         }
         let scanStartedAt = Date()
         let scanResult = artifactCandidates(deepCleanupEnabled: deepCleanupEnabled, log: log)
@@ -221,10 +274,6 @@ enum SafeCleaner {
         let scanMilliseconds = Int(Date().timeIntervalSince(scanStartedAt) * 1_000)
         log.append("SCAN candidatos=\(candidates.count) duracaoMs=\(scanMilliseconds) falhas=\(scanResult.scanFailures)")
 
-        guard let activeDirectories = activeWorkingDirectories() else {
-            log.append("BLOCK inspeção de processos indisponível")
-            return (0, candidates.count, failed)
-        }
         for target in candidates {
             guard let gitRoot = gitRoot(for: target) else {
                 log.append("SKIP sem Git: \(target.path)")
@@ -343,7 +392,170 @@ enum SafeCleaner {
             blocked += temporaryResult.blocked
             failed += temporaryResult.failed
         }
-        return (removed, blocked, failed)
+        return (removed, blocked, failed, gitDirectoriesToPrune)
+    }
+
+    private struct ReclaimableWorktree {
+        let root: URL
+        let branch: String
+        let head: String
+        let commonGitDirectory: String
+        let lastActivity: Date
+        let sizeKiB: Int
+    }
+
+    private static func cleanReclaimableWorktrees(
+        bytesRequired: UInt64,
+        activeDirectories: [String],
+        log: CleanupLog,
+        disposal: inout DisposalSession
+    ) -> (removed: Int, blocked: Int, failed: Int, stagedBytes: UInt64, gitDirectoriesToPrune: Set<String>) {
+        let scanStartedAt = Date()
+        let candidates = reclaimableWorktrees(activeDirectories: activeDirectories)
+            .sorted {
+                $0.lastActivity == $1.lastActivity
+                    ? $0.sizeKiB > $1.sizeKiB
+                    : $0.lastActivity < $1.lastActivity
+            }
+        log.append("SCAN worktrees recuperáveis=\(candidates.count) duracaoMs=\(Int(Date().timeIntervalSince(scanStartedAt) * 1_000))")
+
+        var removed = 0
+        var blocked = 0
+        var failed = 0
+        var stagedBytes: UInt64 = 0
+        var gitDirectoriesToPrune = Set<String>()
+        for candidate in candidates where stagedBytes < bytesRequired {
+            guard let currentActiveDirectories = activeWorkingDirectories(),
+                  !CleanupPolicy.isProjectActive(candidate.root.path, activeDirectories: currentActiveDirectories) else {
+                blocked += 1
+                log.append("BLOCK worktree iniciou durante a limpeza: \(candidate.root.path)")
+                continue
+            }
+            let status = runCommand(
+                "/usr/bin/git",
+                ["--no-optional-locks", "-C", candidate.root.path, "status", "--porcelain=v1", "-z"]
+            )
+            let ignoredPaths = worktreeIgnoredPaths(candidate.root)
+            let head = runCommand("/usr/bin/git", ["-C", candidate.root.path, "rev-parse", "HEAD"])
+            let branch = runCommand("/usr/bin/git", ["-C", candidate.root.path, "symbolic-ref", "-q", "HEAD"])
+            guard status.code == 0, status.output.isEmpty,
+                  ignoredPaths.map(CleanupPolicy.hasOnlyRegenerableIgnoredPaths) == true,
+                  head.code == 0, head.output.trimmingCharacters(in: .whitespacesAndNewlines) == candidate.head,
+                  branch.code == 0, branch.output.trimmingCharacters(in: .whitespacesAndNewlines) == candidate.branch,
+                  !containsTrackedProtectedPath(in: candidate.root) else {
+                blocked += 1
+                log.append("BLOCK worktree mudou durante a limpeza: \(candidate.root.path)")
+                continue
+            }
+
+            let receipt: ArtifactReceipt
+            do {
+                receipt = try disposal.stage(candidate.root, expectedBytes: UInt64(candidate.sizeKiB) * 1_024)
+            } catch {
+                failed += 1
+                log.append("ERROR destino da worktree: \(candidate.root.path) \(error.localizedDescription)")
+                continue
+            }
+            let savedHead = runCommand(
+                "/usr/bin/git",
+                ["--git-dir", candidate.commonGitDirectory, "rev-parse", candidate.branch]
+            )
+            guard savedHead.code == 0,
+                  savedHead.output.trimmingCharacters(in: .whitespacesAndNewlines) == candidate.head,
+                  !FileManager.default.fileExists(atPath: candidate.root.path) else {
+                do {
+                    try disposal.restore(receipt)
+                } catch {
+                    disposal.preserveBatch()
+                    log.append("ERROR restauração da worktree; lote preservado: \(candidate.root.path) \(error.localizedDescription)")
+                }
+                failed += 1
+                log.append("ERROR verificação da branch preservada: \(candidate.root.path)")
+                continue
+            }
+            let bytes = UInt64(candidate.sizeKiB) * 1_024
+            stagedBytes += bytes
+            removed += 1
+            gitDirectoriesToPrune.insert(candidate.commonGitDirectory)
+            log.append("REMOVED worktree limpa \(candidate.root.path) sizeKiB=\(candidate.sizeKiB) branch=\(candidate.branch)")
+        }
+        return (removed, blocked, failed, stagedBytes, gitDirectoriesToPrune)
+    }
+
+    private static func reclaimableWorktrees(activeDirectories: [String]) -> [ReclaimableWorktree] {
+        var seen = Set<String>()
+        var worktrees: [ReclaimableWorktree] = []
+        for containerPath in CleanupPolicy.worktreeContainerRoots(homePath: home.path) {
+            guard FileManager.default.fileExists(atPath: containerPath), !isProtected(containerPath) else { continue }
+            let result = runCommand("/usr/bin/find", [
+                containerPath, "-mindepth", "1", "-maxdepth", "4",
+                "-name", ".git", "-type", "f", "-print0",
+            ])
+            guard result.code == 0 else { continue }
+            for rawPath in result.output.split(separator: "\0") {
+                let root = URL(filePath: String(rawPath)).deletingLastPathComponent()
+                guard seen.insert(root.path).inserted, !isProtected(root.path) else { continue }
+                let resolvedRoot = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "--show-toplevel"])
+                guard resolvedRoot.code == 0,
+                      URL(filePath: resolvedRoot.output.trimmingCharacters(in: .whitespacesAndNewlines)).standardizedFileURL.path
+                        == root.standardizedFileURL.path else { continue }
+                let gitDirectoryResult = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "--absolute-git-dir"])
+                let commonGitResult = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "--path-format=absolute", "--git-common-dir"])
+                let branchResult = runCommand("/usr/bin/git", ["-C", root.path, "symbolic-ref", "-q", "HEAD"])
+                let headResult = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "HEAD"])
+                let statusResult = runCommand(
+                    "/usr/bin/git",
+                    ["--no-optional-locks", "-C", root.path, "status", "--porcelain=v1", "-z"]
+                )
+                let ignoredPaths = worktreeIgnoredPaths(root)
+                guard gitDirectoryResult.code == 0, commonGitResult.code == 0,
+                      branchResult.code == 0, headResult.code == 0, statusResult.code == 0,
+                      ignoredPaths.map(CleanupPolicy.hasOnlyRegenerableIgnoredPaths) == true,
+                      !containsTrackedProtectedPath(in: root) else { continue }
+                let gitDirectory = gitDirectoryResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let commonGitDirectory = commonGitResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let branch = branchResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let head = headResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lastActivity = worktreeLastActivity(gitDirectory: gitDirectory)
+                guard CleanupPolicy.isReclaimableWorktree(
+                    isLinkedWorktree: gitDirectory.hasPrefix(commonGitDirectory + "/worktrees/"),
+                    hasBranch: !branch.isEmpty,
+                    isClean: statusResult.output.isEmpty,
+                    isActive: CleanupPolicy.isProjectActive(root.path, activeDirectories: activeDirectories),
+                    lastActivity: lastActivity
+                ) else { continue }
+                let sizeResult = runCommand("/usr/bin/du", ["-sk", root.path])
+                guard sizeResult.code == 0, let sizeKiB = parseDuSizeKiB(sizeResult.output),
+                      sizeKiB >= minimumArtifactKiB, let lastActivity else { continue }
+                worktrees.append(ReclaimableWorktree(
+                    root: root,
+                    branch: branch,
+                    head: head,
+                    commonGitDirectory: commonGitDirectory,
+                    lastActivity: lastActivity,
+                    sizeKiB: sizeKiB
+                ))
+            }
+        }
+        return worktrees
+    }
+
+    static func worktreeIgnoredPaths(_ root: URL) -> [String]? {
+        let result = runCommand(
+            "/usr/bin/git",
+            ["--no-optional-locks", "-C", root.path, "status", "--porcelain=v1", "-z", "--ignored=matching"]
+        )
+        guard result.code == 0 else { return nil }
+        return result.output.split(separator: "\0").compactMap { record in
+            record.hasPrefix("!! ") ? String(record.dropFirst(3)) : nil
+        }
+    }
+
+    static func containsTrackedProtectedPath(in root: URL) -> Bool {
+        let result = runCommand("/usr/bin/git", [
+            "-C", root.path, "ls-files", "-z", "--", ":(glob)**/Warning/Default/**",
+        ])
+        return result.code != 0 || !result.output.isEmpty
     }
 
     private static func artifactCandidates(
@@ -404,12 +616,17 @@ enum SafeCleaner {
             arguments += ["-name", pattern]
         }
         arguments += ["-o", "-path", "*/Warning/Default"]
-        arguments += [
-            ")", "-prune", "-o", "-type", "d", "(",
-            "-name", "node_modules", "-o", "-name", ".next",
-            ")", "-print0", "-prune",
-            "-o", "-type", "l", "(", "-name", "node_modules", "-o", "-name", ".next", ")", "-print0",
-        ]
+        arguments += [")", "-prune", "-o", "-type", "d", "("]
+        for (index, name) in CleanupPolicy.artifactDirectoryNames.sorted().enumerated() {
+            if index > 0 { arguments.append("-o") }
+            arguments += ["-name", name]
+        }
+        arguments += [")", "-print0", "-prune", "-o", "-type", "l", "("]
+        for (index, name) in CleanupPolicy.artifactDirectoryNames.sorted().enumerated() {
+            if index > 0 { arguments.append("-o") }
+            arguments += ["-name", name]
+        }
+        arguments += [")", "-print0"]
 
         let result = runCommand("/usr/bin/find", arguments)
         if let message = scanFailureLogMessage(operation: "varredura de artefatos", path: root.path, result: result) {
@@ -535,9 +752,7 @@ enum SafeCleaner {
         let gitDirResult = runCommand("/usr/bin/git", ["-C", gitRoot.path, "rev-parse", "--absolute-git-dir"])
         guard gitDirResult.code == 0 else { return false }
         let gitDir = URL(filePath: gitDirResult.output.trimmingCharacters(in: .whitespacesAndNewlines))
-        let lastGitActivity = ["HEAD", "index", "logs/HEAD"]
-            .compactMap { try? FileManager.default.attributesOfItem(atPath: gitDir.appending(path: $0).path)[.modificationDate] as? Date }
-            .max()
+        let lastGitActivity = worktreeLastActivity(gitDirectory: gitDir.path)
 
         var upstreamGone = false
         let headRef = runCommand("/usr/bin/git", ["-C", gitRoot.path, "symbolic-ref", "-q", "HEAD"])
@@ -558,6 +773,13 @@ enum SafeCleaner {
             "-o", "-mmin", "-\(minutes)", "-print", "-quit",
         ])
         return recentFile.code == 0 && recentFile.output.isEmpty
+    }
+
+    private static func worktreeLastActivity(gitDirectory: String) -> Date? {
+        let gitDir = URL(filePath: gitDirectory)
+        return ["HEAD", "index", "logs/HEAD"]
+            .compactMap { try? FileManager.default.attributesOfItem(atPath: gitDir.appending(path: $0).path)[.modificationDate] as? Date }
+            .max()
     }
 
     private static func activeWorkingDirectories() -> [String]? {
