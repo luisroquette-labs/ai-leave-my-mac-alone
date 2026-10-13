@@ -211,6 +211,27 @@ import Testing
     ))
 }
 
+@Test func cleanupPolicyRecognizesOnlyRegenerableBuildDirectories() {
+    for name in ["node_modules", ".next", ".build", ".turbo", ".venv", "DerivedData", "dist"] {
+        #expect(CleanupPolicy.isEligibleArtifact(
+            name: name, sizeKiB: 100, isSymbolicLink: false, minimumKiB: 100
+        ))
+    }
+    #expect(!CleanupPolicy.isEligibleArtifact(
+        name: "build", sizeKiB: 100, isSymbolicLink: false, minimumKiB: 100
+    ))
+    #expect(!CleanupPolicy.isEligibleArtifact(
+        name: "dist", sizeKiB: 99, isSymbolicLink: false, minimumKiB: 100
+    ))
+    #expect(!CleanupPolicy.isEligibleArtifact(
+        name: ".venv", sizeKiB: 100, isSymbolicLink: true, minimumKiB: 100
+    ))
+    #expect(CleanupPolicy.hasOnlyRegenerableIgnoredPaths([
+        "node_modules/", "apps/web/.next/", ".build/",
+    ]))
+    #expect(!CleanupPolicy.hasOnlyRegenerableIgnoredPaths([".env", "graphify-out/"]))
+}
+
 @Test func cleanupPolicyKeepsArtifactsInsideTheirGitRoot() {
     let roots = CleanupPolicy.artifactScanRoots(homePath: "/Users/example")
     #expect(roots.contains("/Users/example/Projects"))
@@ -483,6 +504,71 @@ import Testing
     #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(-3_599), now: now, upstreamGone: true))
     #expect(CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(-3_600), now: now, upstreamGone: true))
     #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(60), now: now, upstreamGone: false))
+}
+
+// REGRESSÃO (13/10/2026): limitar a limpeza a node_modules/.next deixou 43 GB
+// de checkouts limpos e encerrados ocupando o SSD, enquanto o uso ficou em 92%.
+// A worktree inteira só é recuperável após 24 h, com branch, limpa e sem processo.
+@Test func onlyCleanInactiveBranchedWorktreesBecomeReclaimable() {
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    let old = now.addingTimeInterval(-CleanupPolicy.reclaimableWorktreeIdleThreshold)
+    #expect(CleanupPolicy.reclaimableWorktreeIdleThreshold == 24 * 3_600)
+    #expect(CleanupPolicy.isReclaimableWorktree(
+        isLinkedWorktree: true, hasBranch: true, isClean: true,
+        isActive: false, lastActivity: old, now: now
+    ))
+    #expect(!CleanupPolicy.isReclaimableWorktree(
+        isLinkedWorktree: true, hasBranch: true, isClean: false,
+        isActive: false, lastActivity: old, now: now
+    ))
+    #expect(!CleanupPolicy.isReclaimableWorktree(
+        isLinkedWorktree: true, hasBranch: true, isClean: true,
+        isActive: true, lastActivity: old, now: now
+    ))
+    #expect(!CleanupPolicy.isReclaimableWorktree(
+        isLinkedWorktree: true, hasBranch: false, isClean: true,
+        isActive: false, lastActivity: old, now: now
+    ))
+    #expect(!CleanupPolicy.isReclaimableWorktree(
+        isLinkedWorktree: true, hasBranch: true, isClean: true,
+        isActive: false, lastActivity: now.addingTimeInterval(-86_399), now: now
+    ))
+}
+
+@Test func worktreeContainersCoverAgentAndProjectLayouts() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    let projects = root.appending(path: "Projects")
+    try FileManager.default.createDirectory(at: projects.appending(path: "site/.worktrees"), withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: projects.appending(path: "site-worktrees"), withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: root.appending(path: "other-worktrees"), withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let roots = Set(CleanupPolicy.worktreeContainerRoots(homePath: root.path).map {
+        URL(filePath: $0).resolvingSymlinksInPath().path
+    })
+    #expect(roots.contains(projects.appending(path: ".worktrees").resolvingSymlinksInPath().path))
+    #expect(roots.contains(root.appending(path: ".codex/worktrees").resolvingSymlinksInPath().path))
+    #expect(roots.contains(projects.appending(path: "site/.worktrees").resolvingSymlinksInPath().path))
+    #expect(roots.contains(projects.appending(path: "site-worktrees").resolvingSymlinksInPath().path))
+    #expect(roots.contains(root.appending(path: "other-worktrees").resolvingSymlinksInPath().path))
+}
+
+@Test func wholeWorktreeCleanupRejectsIgnoredCredentialsAndProtectedMedia() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    #expect(SafeCleaner.runCommand("/usr/bin/git", ["init", root.path]).code == 0)
+    try Data(".env\n".utf8).write(to: root.appending(path: ".gitignore"))
+    try Data("secret\n".utf8).write(to: root.appending(path: ".env"))
+    #expect(SafeCleaner.worktreeIgnoredPaths(root) == [".env"])
+
+    try FileManager.default.removeItem(at: root.appending(path: ".env"))
+    #expect(SafeCleaner.worktreeIgnoredPaths(root) == [])
+    let protected = root.appending(path: "media/Warning/Default/photo.jpg")
+    try FileManager.default.createDirectory(at: protected.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("photo\n".utf8).write(to: protected)
+    #expect(SafeCleaner.runCommand("/usr/bin/git", ["-C", root.path, "add", ".gitignore", "media/Warning/Default/photo.jpg"]).code == 0)
+    #expect(SafeCleaner.containsTrackedProtectedPath(in: root))
 }
 
 // REGRESSÃO (06/09/2026): apagar o node_modules real de uma worktree quebrou a

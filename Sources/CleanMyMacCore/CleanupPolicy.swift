@@ -1,6 +1,9 @@
 import Foundation
 
 public enum CleanupPolicy {
+    public static let artifactDirectoryNames = Set([
+        "node_modules", ".next", ".build", ".turbo", ".venv", "DerivedData", "dist",
+    ])
     private static let excludedDirectoryNames = Set([
         ".git", ".codex", ".npm", ".npm-global", ".9router", ".vscode",
         ".Trash", "Library", "Arquivos Públicos", "Arquivos Públicos",
@@ -17,6 +20,35 @@ public enum CleanupPolicy {
             .map { URL(filePath: homePath).appending(path: $0).path }
         roots += agentWorktreeSubtrees(homePath: homePath)
         return roots
+    }
+
+    public static func worktreeContainerRoots(homePath: String) -> [String] {
+        let home = URL(filePath: homePath)
+        let projects = home.appending(path: "Projects")
+        var roots = [
+            projects.appending(path: ".worktrees").path,
+            home.appending(path: ".worktrees").path,
+            home.appending(path: ".codex/worktrees").path,
+        ]
+        for parent in [home, projects] {
+            let children = (try? FileManager.default.contentsOfDirectory(
+                at: parent,
+                includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            for child in children {
+                let values = try? child.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                guard values?.isDirectory == true, values?.isSymbolicLink != true else { continue }
+                if child.lastPathComponent.hasSuffix("-worktrees") {
+                    roots.append(child.path)
+                }
+                let nested = child.appending(path: ".worktrees")
+                if FileManager.default.fileExists(atPath: nested.path) {
+                    roots.append(nested.path)
+                }
+            }
+        }
+        return Array(Set(roots)).sorted()
     }
 
     public static let temporaryArtifactMinimumAge: TimeInterval = 24 * 3_600
@@ -75,8 +107,14 @@ public enum CleanupPolicy {
         minimumKiB: Int
     ) -> Bool {
         !isSymbolicLink
-            && (name == "node_modules" || name == ".next")
+            && artifactDirectoryNames.contains(name)
             && sizeKiB >= minimumKiB
+    }
+
+    public static func hasOnlyRegenerableIgnoredPaths(_ paths: [String]) -> Bool {
+        paths.allSatisfy { path in
+            path.split(separator: "/").contains { artifactDirectoryNames.contains(String($0)) }
+        }
     }
 
     public static func shouldExcludeDirectory(named name: String) -> Bool {
@@ -98,6 +136,7 @@ public enum CleanupPolicy {
     /// Janela de ociosidade da worktree: o terminal do agente pode seguir aberto
     /// por dias, mas trabalho sem atividade na própria worktree já terminou.
     public static let worktreeIdleThreshold: TimeInterval = 4 * 3_600
+    public static let reclaimableWorktreeIdleThreshold: TimeInterval = 24 * 3_600
     /// Branch cujo upstream sumiu (PR mergeado e branch apagada) já terminou.
     public static let finishedWorktreeIdleThreshold: TimeInterval = 3_600
 
@@ -109,6 +148,18 @@ public enum CleanupPolicy {
     public static func isWorktreeIdle(lastActivity: Date?, now: Date, upstreamGone: Bool) -> Bool {
         guard let lastActivity else { return false }
         return now.timeIntervalSince(lastActivity) >= worktreeIdleThreshold(upstreamGone: upstreamGone)
+    }
+
+    public static func isReclaimableWorktree(
+        isLinkedWorktree: Bool,
+        hasBranch: Bool,
+        isClean: Bool,
+        isActive: Bool,
+        lastActivity: Date?,
+        now: Date = Date()
+    ) -> Bool {
+        guard isLinkedWorktree, hasBranch, isClean, !isActive, let lastActivity else { return false }
+        return now.timeIntervalSince(lastActivity) >= reclaimableWorktreeIdleThreshold
     }
 
     /// Outra worktree aponta o próprio node_modules/.next para este alvo:
