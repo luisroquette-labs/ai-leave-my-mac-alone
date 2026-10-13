@@ -101,7 +101,12 @@ import Testing
         escalateAtHardLimit: true,
         usedFractionAfterArtifacts: 0.79
     ))
-    #expect(StoragePolicy.shouldCleanNativeCaches(
+    #expect(!StoragePolicy.shouldCleanNativeCaches(
+        requested: false,
+        escalateAtHardLimit: true,
+        usedFractionAfterArtifacts: 0.796
+    ))
+    #expect(!StoragePolicy.shouldCleanNativeCaches(
         requested: false,
         escalateAtHardLimit: true,
         usedFractionAfterArtifacts: nil
@@ -240,6 +245,7 @@ import Testing
     #expect(paths.contains("/Users/example/.npm/_npx"))
     #expect(paths.contains("/Users/example/Library/Developer/Xcode/DerivedData"))
     #expect(CleanupPolicy.lastResortCachePaths(homePath: "/Users/example") == [
+        "/Users/example/Library/pnpm/store",
         "/Users/example/.cache/codex-runtimes",
     ])
     #expect(!paths.contains { $0.contains("Library/Application Support") })
@@ -250,23 +256,91 @@ import Testing
     #expect(!CleanupPolicy.browserCacheLeafNames.contains("Default"))
 
     let now = Date(timeIntervalSince1970: 100_000)
-    #expect(CleanupPolicy.shouldCleanAggressiveCaches(
-        usedFraction: 0.85, lastCleanedAt: nil, now: now
+    #expect(CleanupPolicy.shouldCleanAggressiveCachePath(lastCleanedAt: nil, now: now))
+    #expect(!CleanupPolicy.shouldCleanAggressiveCachePath(
+        lastCleanedAt: now.addingTimeInterval(-3_600), now: now
     ))
-    #expect(!CleanupPolicy.shouldCleanAggressiveCaches(
-        usedFraction: 0.79, lastCleanedAt: nil, now: now
-    ))
-    #expect(!CleanupPolicy.shouldCleanAggressiveCaches(
-        usedFraction: 0.85, lastCleanedAt: now.addingTimeInterval(-3_600), now: now
-    ))
-    #expect(CleanupPolicy.shouldCleanAggressiveCaches(
-        usedFraction: 0.85,
+    #expect(CleanupPolicy.shouldCleanAggressiveCachePath(
         lastCleanedAt: now.addingTimeInterval(-CleanupPolicy.aggressiveCacheCooldown),
         now: now
+    ))
+    #expect(CleanupPolicy.shouldCleanAggressiveCachePath(
+        lastCleanedAt: now.addingTimeInterval(3_600),
+        now: now
+    ))
+    #expect(CleanupPolicy.isSafeCacheCandidate(
+        path: "/Users/example/Library/Caches/Codex/Default/Cache",
+        resolvedPath: "/Users/example/Library/Caches/Codex/Default/Cache"
+    ))
+    #expect(!CleanupPolicy.isSafeCacheCandidate(
+        path: "/Users/example/Library/Caches/Codex/Default/Cache",
+        resolvedPath: "/Users/example/Pictures/Warning/Default/Cache"
+    ))
+    #expect(CleanupPolicy.isOwnedDeleteBatch(
+        path: "/Users/example/.Trash/CleanMyMac-DeleteBatch-123-uuid",
+        trashRoot: "/Users/example/.Trash"
+    ))
+    #expect(!CleanupPolicy.isOwnedDeleteBatch(
+        path: "/Users/example/.Trash/CleanMyMac-123-uuid",
+        trashRoot: "/Users/example/.Trash"
+    ))
+    #expect(!CleanupPolicy.isOwnedDeleteBatch(
+        path: "/Users/example/.Trash/nested/CleanMyMac-DeleteBatch-123-uuid",
+        trashRoot: "/Users/example/.Trash"
+    ))
+    #expect(!CleanupPolicy.isOwnedDeleteBatch(
+        path: "/Users/example/.Trash/CleanMyMac-DeleteBatch-123-\"bad",
+        trashRoot: "/Users/example/.Trash"
     ))
     #expect(CleanupPolicy.bytesToStageFromAggressiveCaches(shortfall: 1_000) ==
         1_000 + CleanupPolicy.aggressiveCacheReclaimReserveBytes)
     #expect(CleanupPolicy.bytesToStageFromAggressiveCaches(shortfall: UInt64.max) == UInt64.max)
+    #expect(!CleanupPolicy.reachedCleanupTarget(bytesRequired: 0, stagedBytes: 0))
+    #expect(!CleanupPolicy.reachedCleanupTarget(bytesRequired: 100, stagedBytes: 99))
+    #expect(CleanupPolicy.reachedCleanupTarget(bytesRequired: 100, stagedBytes: 100))
+}
+
+@Test func agentCacheArtifactsResolveToTheirTopLevelProject() {
+    let root = URL(filePath: "/Users/example/.cache/codex", directoryHint: .isDirectory)
+    let nested = root.appending(path: "active-project/apps/web/node_modules", directoryHint: .isDirectory)
+    #expect(SafeCleaner.agentCacheProjectRoot(for: nested, under: root)?.path ==
+        "/Users/example/.cache/codex/active-project")
+    #expect(SafeCleaner.agentCacheProjectRoot(
+        for: URL(filePath: "/Users/example/Projects/app/node_modules"),
+        under: root
+    ) == nil)
+}
+
+@Test func lastResortCacheRequiresConclusiveOpenFileInspection() {
+    #expect(SafeCleaner.confirmsNoOpenFiles(CommandResult(code: 1, output: "")))
+    #expect(!SafeCleaner.confirmsNoOpenFiles(CommandResult(code: 0, output: "COMMAND PID")))
+    #expect(!SafeCleaner.confirmsNoOpenFiles(CommandResult(code: 124, output: "tempo limite")))
+}
+
+@Test func worktreeMetadataSearchPrunesRegenerableTrees() {
+    let arguments = SafeCleaner.worktreeMetadataSearchArguments(containerPath: "/worktrees")
+    #expect(arguments.prefix(5) == ["/worktrees", "-mindepth", "1", "-maxdepth", "4"])
+    for name in ["node_modules", ".next", ".build", ".git"] {
+        #expect(arguments.contains(name))
+    }
+    #expect(Array(arguments.suffix(6)) == ["-o", "-name", ".git", "-type", "f", "-print0"])
+}
+
+@Test func pnpmCleanupRejectsCorepackShimsThatMayDownloadPackages() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    let corepack = root.appending(path: "lib/node_modules/corepack/dist", directoryHint: .isDirectory)
+    let shim = root.appending(path: "bin/pnpm")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: corepack, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: shim.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data().write(to: corepack.appending(path: "pnpm.js"))
+    try FileManager.default.createSymbolicLink(
+        atPath: shim.path,
+        withDestinationPath: "../lib/node_modules/corepack/dist/pnpm.js"
+    )
+
+    #expect(SafeCleaner.isCorepackShim(shim.path))
+    #expect(!SafeCleaner.isCorepackShim("/bin/echo"))
 }
 
 @Test func cleanupPolicyKeepsArtifactsInsideTheirGitRoot() {

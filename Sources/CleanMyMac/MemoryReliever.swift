@@ -38,7 +38,7 @@ enum MemoryReliever {
     }
 
     private static func runSynchronously() -> MemoryReliefResult {
-        let listing = SafeCleaner.runCommand("/bin/ps", ["-Ao", "pid,rss,etime,command"])
+        let listing = SafeCleaner.runCommand("/bin/ps", ["-Ao", "pid,ppid,rss,etime,command"])
         guard listing.code == 0 else {
             SafeCleaner.record("ERROR memória: falha ao listar processos")
             return MemoryReliefResult(killedProcesses: 0, freedBytes: 0, stoppedIdleVM: false)
@@ -47,22 +47,53 @@ enum MemoryReliever {
         var killed = 0
         var freedKiB: UInt64 = 0
         for line in listing.output.split(separator: "\n").dropFirst() {
-            let fields = line.split(separator: " ", maxSplits: 3, omittingEmptySubsequences: true)
-            guard fields.count == 4, let pid = Int32(fields[0]), let rss = UInt64(fields[1]) else { continue }
-            let uptime = MemoryReliefTargetPolicy.parseEtime(String(fields[2]))
-            let command = String(fields[3])
-            guard MemoryReliefTargetPolicy.shouldKill(command: command, rssKiB: rss, uptimeSeconds: uptime) else { continue }
+            let fields = line.split(separator: " ", maxSplits: 4, omittingEmptySubsequences: true)
+            guard fields.count == 5,
+                  let pid = Int32(fields[0]),
+                  let parentPID = Int32(fields[1]),
+                  let rss = UInt64(fields[2]) else { continue }
+            let uptime = MemoryReliefTargetPolicy.parseEtime(String(fields[3]))
+            let command = String(fields[4])
+            guard MemoryReliefTargetPolicy.shouldKill(
+                command: command,
+                parentPID: parentPID,
+                uptimeSeconds: uptime
+            ) else { continue }
+            guard processIdentityMatches(pid: pid, parentPID: parentPID, command: command) else {
+                SafeCleaner.record("MEMORY preservou PID \(pid): identidade mudou antes do encerramento")
+                continue
+            }
 
             _ = SafeCleaner.runCommand("/usr/bin/pkill", ["-TERM", "-P", "\(pid)"])
             kill(pid, SIGTERM)
             Thread.sleep(forTimeInterval: 1)
-            kill(pid, SIGKILL)
+            if processIdentityMatches(pid: pid, parentPID: parentPID, command: command) {
+                kill(pid, SIGKILL)
+            }
             killed += 1
             freedKiB += rss
-            SafeCleaner.record("MEMORY matou PID \(pid) (\(rss)KiB, uptime \(fields[2])): \(command)")
+            SafeCleaner.record("MEMORY matou PID \(pid) (\(rss)KiB, uptime \(fields[3])): \(command)")
         }
         let stoppedVM = stopIdleColimaVM(processListing: listing.output)
         return MemoryReliefResult(killedProcesses: killed, freedBytes: freedKiB * 1_024, stoppedIdleVM: stoppedVM)
+    }
+
+    private static func processIdentityMatches(pid: Int32, parentPID: Int32, command: String) -> Bool {
+        let current = SafeCleaner.runCommand(
+            "/bin/ps",
+            ["-p", "\(pid)", "-o", "ppid=,command="]
+        )
+        return current.code == 0 && processIdentityOutputMatches(
+            current.output,
+            parentPID: parentPID,
+            command: command
+        )
+    }
+
+    static func processIdentityOutputMatches(_ output: String, parentPID: Int32, command: String) -> Bool {
+        let fields = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        return fields.count == 2 && Int32(fields[0]) == parentPID && String(fields[1]) == command
     }
 
     /// VM do colima ligada sem nenhum container ativo = sala vazia com a luz acesa

@@ -35,8 +35,37 @@ cd "$project_dir"
 }
 
 ! /usr/bin/grep -Fq '["cache", "npx", "rm"]' Sources/CleanMyMac/SafeCleaner.swift \
-    && /usr/bin/grep -Fq '["store", "prune"], bunWorkingDirectory' Sources/CleanMyMac/SafeCleaner.swift || {
+    && /usr/bin/grep -Fq '["store", "prune"], bunWorkingDirectory' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'arguments == ["store", "prune"]' Sources/CleanMyMac/SafeCleaner.swift || {
     print -u2 "Native cache cleanup contains a known-invalid command or unsafe pnpm working directory"
+    exit 1
+}
+
+/usr/bin/grep -Fq 'includeNativeCaches: !isAutomatic,' Sources/CleanMyMac/StorageMonitor.swift || {
+    print -u2 "Automatic cleanup must reserve native cache pruning for the hard-limit escalation"
+    exit 1
+}
+
+/usr/bin/grep -Fq '["-Ao", "pid,ppid,rss,etime,command"]' Sources/CleanMyMac/MemoryReliever.swift \
+    && /usr/bin/grep -Fq 'guard parentPID == 1,' Sources/CleanMyMacCore/MemoryPolicy.swift \
+    && [[ $(/usr/bin/grep -Fc 'processIdentityMatches(pid: pid, parentPID: parentPID, command: command)' Sources/CleanMyMac/MemoryReliever.swift) -eq 2 ]] || {
+    print -u2 "Memory relief must never infer an orphan from RSS alone"
+    exit 1
+}
+
+/usr/bin/grep -Fq 'if destructivePipelineReady, deepCleanupEnabled, destination == .deleteBatch,' Sources/CleanMyMac/SafeCleaner.swift \
+    && ! /usr/bin/grep -Fq 'RECHECK worktrees' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'private static let aggressiveCacheCleanupKey = "aggressiveCacheCleanupDatesByPath"' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'BLOCK cache de agente em uso' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq ').filter { !isCorepackShim($0) }' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'worktreeMetadataSearchArguments(containerPath: containerPath)' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'if candidate.stopAfterStaging { break }' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'let openFiles = runCommand("/usr/sbin/lsof", ["+D", path], timeout: 5)' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'DisposalSession.recoverPendingDeleteBatch(log: log)' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'ERROR leitura inicial do disco; limpeza bloqueada' Sources/CleanMyMac/SafeCleaner.swift \
+    && [[ $(/usr/bin/grep -Fc 'CleanupPolicy.reachedCleanupTarget(bytesRequired: bytesRequired, stagedBytes: stagedBytes)' Sources/CleanMyMac/SafeCleaner.swift) -eq 3 ]] \
+    && /usr/bin/perl -0ne 'exit !/private static func gitRoot.*?"rev-parse", "--show-toplevel"\],\s+timeout: 5/s' Sources/CleanMyMac/SafeCleaner.swift || {
+    print -u2 "Closed-loop cleanup safety guards are missing"
     exit 1
 }
 

@@ -5,6 +5,7 @@ import Foundation
 // do lote ou backup externo verificado por SHA-256 antes de remover o original.
 extension SafeCleaner {
     struct DisposalSession {
+        private static let pendingDeleteBatchKey = "pendingDeleteBatchPath"
         let destination: CleanupDestination
         let externalBackupPath: String?
         private var batchRoot: URL?
@@ -128,13 +129,42 @@ extension SafeCleaner {
             case .externalBackup:
                 log.append("BACKUP lote verificado: \(batchRoot.path)")
                 guard let removalBatchRoot else { return true }
-                return deleteExactTrashBatch(removalBatchRoot, log: log)
+                return Self.deleteExactTrashBatch(removalBatchRoot, log: log)
             case .deleteBatch:
-                return deleteExactTrashBatch(batchRoot, log: log)
+                UserDefaults.standard.set(batchRoot.path, forKey: Self.pendingDeleteBatchKey)
+                let deleted = Self.deleteExactTrashBatch(batchRoot, log: log)
+                if deleted { UserDefaults.standard.removeObject(forKey: Self.pendingDeleteBatchKey) }
+                return deleted
             }
         }
 
-        private func deleteExactTrashBatch(_ root: URL, log: CleanupLog) -> Bool {
+        static func recoverPendingDeleteBatch(log: CleanupLog) -> Bool {
+            guard let path = UserDefaults.standard.string(forKey: pendingDeleteBatchKey) else { return true }
+            let trashRoot = SafeCleaner.home.appending(path: ".Trash", directoryHint: .isDirectory)
+            guard CleanupPolicy.isOwnedDeleteBatch(path: path, trashRoot: trashRoot.path) else {
+                log.append("ERROR lote pendente inválido bloqueado: \(path)")
+                UserDefaults.standard.removeObject(forKey: pendingDeleteBatchKey)
+                return true
+            }
+            guard FileManager.default.fileExists(atPath: path) else {
+                UserDefaults.standard.removeObject(forKey: pendingDeleteBatchKey)
+                log.append("RECOVER lote pendente já ausente: \(path)")
+                return true
+            }
+            let root = URL(filePath: path, directoryHint: .isDirectory)
+            let values = try? root.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard values?.isDirectory == true, values?.isSymbolicLink != true else {
+                log.append("ERROR lote pendente não é diretório seguro: \(path)")
+                UserDefaults.standard.removeObject(forKey: pendingDeleteBatchKey)
+                return true
+            }
+            guard deleteExactTrashBatch(root, log: log) else { return false }
+            UserDefaults.standard.removeObject(forKey: pendingDeleteBatchKey)
+            log.append("RECOVER lote pendente concluído: \(path)")
+            return true
+        }
+
+        private static func deleteExactTrashBatch(_ root: URL, log: CleanupLog) -> Bool {
             let escapedPath = root.path
                 .replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "\"", with: "\\\"")
@@ -157,10 +187,14 @@ extension SafeCleaner {
             let batchName = "\(Int(Date().timeIntervalSince1970))-\(UUID().uuidString)"
             let root: URL
             switch destination {
-            case .trash, .deleteBatch:
+            case .trash:
                 root = SafeCleaner.home
                     .appending(path: ".Trash", directoryHint: .isDirectory)
                     .appending(path: "CleanMyMac-\(batchName)", directoryHint: .isDirectory)
+            case .deleteBatch:
+                root = SafeCleaner.home
+                    .appending(path: ".Trash", directoryHint: .isDirectory)
+                    .appending(path: "CleanMyMac-DeleteBatch-\(batchName)", directoryHint: .isDirectory)
             case .externalBackup:
                 guard let externalBackupPath else { throw DisposalError.externalDriveUnavailable }
                 root = URL(filePath: externalBackupPath, directoryHint: .isDirectory)

@@ -121,13 +121,33 @@ enum SafeCleaner {
         destination: CleanupDestination,
         externalBackupPath: String?
     ) -> CleanupResult {
-        let startingSnapshot = try? StorageReader.read()
-        let before = startingSnapshot?.availableBytes ?? 0
+        let before = try? StorageReader.read().availableBytes
         var removedTargets = 0
         var blockedTargets = 0
         var failedTargets = 0
         let log = CleanupLog(url: logURL)
         log.append("START armazenamento seguro destino=\(destination.rawValue) profunda=\(deepCleanupEnabled)")
+
+        if destination == .deleteBatch, !DisposalSession.recoverPendingDeleteBatch(log: log) {
+            log.append("END liberados=0 removidos=0 bloqueados=0 falhas=1")
+            return CleanupResult(
+                destination: destination,
+                removedTargets: 0,
+                blockedTargets: 0,
+                failedTargets: 1,
+                freedBytes: 0
+            )
+        }
+        guard let startingSnapshot = try? StorageReader.read() else {
+            log.append("ERROR leitura inicial do disco; limpeza bloqueada")
+            return CleanupResult(
+                destination: destination,
+                removedTargets: 0,
+                blockedTargets: 0,
+                failedTargets: 1,
+                freedBytes: 0
+            )
+        }
 
         var disposal = DisposalSession(
             destination: destination,
@@ -135,52 +155,27 @@ enum SafeCleaner {
         )
         let artifactResult = cleanGeneratedArtifacts(
             deepCleanupEnabled: deepCleanupEnabled,
-            bytesRequired: startingSnapshot.map(StoragePolicy.bytesRequiredToGetBelowHardLimit) ?? 0,
+            bytesRequired: StoragePolicy.bytesRequiredToGetBelowHardLimit(startingSnapshot),
             destination: destination,
             log: log,
             disposal: &disposal
         )
-        removedTargets += artifactResult.removed
         blockedTargets += artifactResult.blocked
         failedTargets += artifactResult.failed
         let finalized = disposal.finalize(log: log)
+        var destructivePipelineReady = finalized
         if !finalized {
             failedTargets += 1
-        } else if destination == .deleteBatch {
-            failedTargets += pruneWorktreeMetadata(artifactResult.gitDirectoriesToPrune, log: log)
-        }
-
-        // Artefatos ignorados podem ser a única razão para uma worktree limpa não
-        // entrar na primeira seleção. Depois que o lote acima é finalizado, reavaliar
-        // uma vez fecha a mesma rodada sem criar um ciclo apagar/reconstruir.
-        if finalized, deepCleanupEnabled, destination == .deleteBatch,
-           let snapshot = try? StorageReader.read(),
-           StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot) > 0,
-           let activeDirectories = activeWorkingDirectories() {
-            var recheckDisposal = DisposalSession(destination: .deleteBatch, externalBackupPath: nil)
-            let recheck = cleanReclaimableWorktrees(
-                bytesRequired: StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot),
-                activeDirectories: activeDirectories,
-                log: log,
-                disposal: &recheckDisposal
-            )
-            removedTargets += recheck.removed
-            blockedTargets += recheck.blocked
-            failedTargets += recheck.failed
-            log.append("RECHECK worktrees recuperadas=\(recheck.removed)")
-            if recheckDisposal.finalize(log: log) {
-                failedTargets += pruneWorktreeMetadata(recheck.gitDirectoriesToPrune, log: log)
-            } else {
-                failedTargets += 1
+        } else {
+            removedTargets += artifactResult.removed
+            if destination == .deleteBatch {
+                failedTargets += pruneWorktreeMetadata(artifactResult.gitDirectoriesToPrune, log: log)
             }
         }
 
-        if deepCleanupEnabled, destination == .deleteBatch,
+        if destructivePipelineReady, deepCleanupEnabled, destination == .deleteBatch,
            let snapshot = try? StorageReader.read(),
-           CleanupPolicy.shouldCleanAggressiveCaches(
-               usedFraction: snapshot.usedFraction,
-               lastCleanedAt: UserDefaults.standard.object(forKey: aggressiveCacheCleanupKey) as? Date
-           ) {
+           StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot) > 0 {
             let cacheResult = cleanRegenerableCaches(
                 bytesRequired: CleanupPolicy.bytesToStageFromAggressiveCaches(
                     shortfall: StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot)
@@ -188,11 +183,11 @@ enum SafeCleaner {
                 log: log
             )
             removedTargets += cacheResult.removed
+            blockedTargets += cacheResult.blocked
             failedTargets += cacheResult.failed
-        } else if deepCleanupEnabled, destination == .deleteBatch,
-                  let snapshot = try? StorageReader.read(),
-                  StoragePolicy.isAtOrAboveHardLimit(snapshot.usedFraction) {
-            log.append("CACHE agressivo em cooldown para impedir ciclo de reconstrução")
+            destructivePipelineReady = cacheResult.finalized
+        } else if !destructivePipelineReady, deepCleanupEnabled, destination == .deleteBatch {
+            log.append("CACHE agressivo ignorado: lote anterior não foi finalizado")
         }
         let fractionAfterArtifacts = try? StorageReader.read().usedFraction
         let shouldCleanNativeCaches = StoragePolicy.shouldCleanNativeCaches(
@@ -200,15 +195,17 @@ enum SafeCleaner {
             escalateAtHardLimit: escalateNativeCachesAtHardLimit,
             usedFractionAfterArtifacts: fractionAfterArtifacts
         )
-        if shouldCleanNativeCaches, destination == .deleteBatch {
+        if shouldCleanNativeCaches, !destructivePipelineReady {
+            log.append("CACHE limpeza nativa ignorada: lote anterior não foi finalizado")
+        } else if shouldCleanNativeCaches, destination == .deleteBatch {
             failedTargets += cleanNativeCaches(log: log)
         } else if shouldCleanNativeCaches {
             log.append("CACHE limpeza nativa ignorada para respeitar o destino escolhido")
         } else {
             log.append("CACHE limpeza nativa dispensada: uso abaixo do limite de 80%")
         }
-        let after = (try? StorageReader.read().availableBytes) ?? before
-        let freed = after > before ? after - before : 0
+        let after = try? StorageReader.read().availableBytes
+        let freed: UInt64 = if let before, let after, after > before { after - before } else { 0 }
         log.append("END liberados=\(freed) removidos=\(removedTargets) bloqueados=\(blockedTargets) falhas=\(failedTargets)")
         return CleanupResult(
             destination: destination,
@@ -219,8 +216,14 @@ enum SafeCleaner {
         )
     }
 
-    private static let aggressiveCacheCleanupKey = "lastAggressiveCacheCleanupAt"
+    private static let aggressiveCacheCleanupKey = "aggressiveCacheCleanupDatesByPath"
     private static let minimumCacheKiB = 10 * 1_024
+
+    private struct RegenerableCacheCandidate {
+        let target: URL
+        let activeProjectRoot: URL?
+        let stopAfterStaging: Bool
+    }
 
     private static func pruneWorktreeMetadata(_ gitDirectories: Set<String>, log: CleanupLog) -> Int {
         var failures = 0
@@ -240,28 +243,81 @@ enum SafeCleaner {
     private static func cleanRegenerableCaches(
         bytesRequired: UInt64,
         log: CleanupLog
-    ) -> (removed: Int, failed: Int) {
-        guard bytesRequired > 0 else { return (0, 0) }
+    ) -> (removed: Int, blocked: Int, failed: Int, finalized: Bool) {
+        guard bytesRequired > 0 else { return (0, 0, 0, true) }
         var disposal = DisposalSession(destination: .deleteBatch, externalBackupPath: nil)
         var removed = 0
+        var blocked = 0
         var failed = 0
         var stagedBytes: UInt64 = 0
         var candidates = CleanupPolicy.regenerableCachePaths(homePath: home.path).map {
-            URL(filePath: $0, directoryHint: .isDirectory)
+            RegenerableCacheCandidate(
+                target: URL(filePath: $0, directoryHint: .isDirectory),
+                activeProjectRoot: nil,
+                stopAfterStaging: false
+            )
         }
-        candidates += browserCacheCandidates()
+        candidates += browserCacheCandidates().map {
+            RegenerableCacheCandidate(target: $0, activeProjectRoot: nil, stopAfterStaging: false)
+        }
         candidates += agentCacheArtifactCandidates()
         candidates += CleanupPolicy.lastResortCachePaths(homePath: home.path).map {
-            URL(filePath: $0, directoryHint: .isDirectory)
+            RegenerableCacheCandidate(
+                target: URL(filePath: $0, directoryHint: .isDirectory),
+                activeProjectRoot: nil,
+                stopAfterStaging: true
+            )
         }
 
         var seen = Set<String>()
-        for target in candidates where stagedBytes < bytesRequired {
+        var stagedPaths: [String] = []
+        var cooldownSkipped = 0
+        let now = Date()
+        var cleanupDates = aggressiveCacheCleanupDates()
+        cleanupDates = cleanupDates.filter {
+            let elapsed = now.timeIntervalSince($0.value)
+            return elapsed >= 0 && elapsed < CleanupPolicy.aggressiveCacheCooldown
+        }
+        for candidate in candidates where stagedBytes < bytesRequired {
+            let target = candidate.target
             let path = target.standardizedFileURL.path
             guard seen.insert(path).inserted,
-                  !CleanupPolicy.isProtected(path, protectedPaths: []),
+                  CleanupPolicy.isSafeCacheCandidate(
+                      path: path,
+                      resolvedPath: target.resolvingSymlinksInPath().standardizedFileURL.path
+                  ),
                   let values = try? target.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
                   values.isDirectory == true, values.isSymbolicLink != true else { continue }
+            guard CleanupPolicy.shouldCleanAggressiveCachePath(
+                lastCleanedAt: cleanupDates[path],
+                now: now
+            ) else {
+                cooldownSkipped += 1
+                continue
+            }
+            if let activeProjectRoot = candidate.activeProjectRoot {
+                guard let activeDirectories = activeWorkingDirectories() else {
+                    blocked += 1
+                    log.append("BLOCK cache de agente sem inspeção de processos: \(path)")
+                    continue
+                }
+                guard !CleanupPolicy.isProjectActive(
+                    activeProjectRoot.path,
+                    activeDirectories: activeDirectories
+                ) else {
+                    blocked += 1
+                    log.append("BLOCK cache de agente em uso: \(path)")
+                    continue
+                }
+            }
+            if candidate.stopAfterStaging {
+                let openFiles = runCommand("/usr/sbin/lsof", ["+D", path], timeout: 5)
+                guard confirmsNoOpenFiles(openFiles) else {
+                    blocked += 1
+                    log.append("BLOCK cache de último recurso em uso ou não verificável: \(path)")
+                    continue
+                }
+            }
             let sizeResult = runCommand("/usr/bin/du", ["-sk", path])
             guard sizeResult.code == 0, let sizeKiB = parseDuSizeKiB(sizeResult.output),
                   sizeKiB >= minimumCacheKiB else { continue }
@@ -269,18 +325,35 @@ enum SafeCleaner {
                 _ = try disposal.stage(target, expectedBytes: UInt64(sizeKiB) * 1_024)
                 removed += 1
                 stagedBytes += UInt64(sizeKiB) * 1_024
-                log.append("CACHE REMOVED regenerável \(path) sizeKiB=\(sizeKiB)")
+                stagedPaths.append(path)
+                log.append("CACHE STAGED regenerável \(path) sizeKiB=\(sizeKiB)")
+                if candidate.stopAfterStaging { break }
             } catch {
                 failed += 1
                 log.append("ERROR cache regenerável: \(path) \(error.localizedDescription)")
             }
         }
-        guard disposal.finalize(log: log) else { return (removed, failed + 1) }
+        guard disposal.finalize(log: log) else { return (0, blocked, failed + 1, false) }
         if removed > 0 {
-            UserDefaults.standard.set(Date(), forKey: aggressiveCacheCleanupKey)
+            for path in stagedPaths {
+                cleanupDates[path] = now
+            }
+            UserDefaults.standard.set(cleanupDates, forKey: aggressiveCacheCleanupKey)
+        }
+        if cooldownSkipped > 0 {
+            log.append("CACHE cooldown caminhos=\(cooldownSkipped)")
         }
         log.append("CACHE agressivo removidos=\(removed) estimadoBytes=\(stagedBytes)")
-        return (removed, failed)
+        return (removed, blocked, failed, true)
+    }
+
+    private static func aggressiveCacheCleanupDates() -> [String: Date] {
+        (UserDefaults.standard.dictionary(forKey: aggressiveCacheCleanupKey) ?? [:])
+            .compactMapValues { $0 as? Date }
+    }
+
+    static func confirmsNoOpenFiles(_ result: CommandResult) -> Bool {
+        result.code == 1 && result.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private static func browserCacheCandidates() -> [URL] {
@@ -297,14 +370,14 @@ enum SafeCleaner {
         }
     }
 
-    private static func agentCacheArtifactCandidates() -> [URL] {
+    private static func agentCacheArtifactCandidates() -> [RegenerableCacheCandidate] {
         let root = home.appending(path: ".cache/codex", directoryHint: .isDirectory)
         guard let enumerator = FileManager.default.enumerator(
             at: root,
             includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         ) else { return [] }
-        var candidates: [URL] = []
+        var candidates: [RegenerableCacheCandidate] = []
         let rootDepth = root.pathComponents.count
         for case let url as URL in enumerator {
             let depth = url.pathComponents.count - rootDepth
@@ -315,10 +388,23 @@ enum SafeCleaner {
             guard CleanupPolicy.artifactDirectoryNames.contains(url.lastPathComponent),
                   let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
                   values.isDirectory == true, values.isSymbolicLink != true else { continue }
-            candidates.append(url)
+            guard let projectRoot = agentCacheProjectRoot(for: url, under: root) else { continue }
+            candidates.append(RegenerableCacheCandidate(
+                target: url,
+                activeProjectRoot: projectRoot,
+                stopAfterStaging: false
+            ))
             enumerator.skipDescendants()
         }
         return candidates
+    }
+
+    static func agentCacheProjectRoot(for candidate: URL, under root: URL) -> URL? {
+        let rootComponents = root.standardizedFileURL.pathComponents
+        let candidateComponents = candidate.standardizedFileURL.pathComponents
+        guard candidateComponents.starts(with: rootComponents),
+              candidateComponents.count > rootComponents.count else { return nil }
+        return root.appending(path: candidateComponents[rootComponents.count], directoryHint: .isDirectory)
     }
 
     private static func cleanNativeCaches(log: CleanupLog) -> Int {
@@ -336,19 +422,23 @@ enum SafeCleaner {
         }
         defer { try? FileManager.default.removeItem(at: bunWorkspace) }
 
-        let pnpmLocations = nvmBinaryLocations(named: "pnpm")
+        let pnpmLocations = (nvmBinaryLocations(named: "pnpm") + [
+            "/opt/homebrew/bin/pnpm", "/usr/local/bin/pnpm",
+        ]).filter { !isCorepackShim($0) }
         let commands: [([String], [String], URL?, TimeInterval)] = [
             (["/opt/homebrew/bin/npm", "/usr/local/bin/npm"], ["cache", "clean", "--force"], nil, 120),
             ([home.appending(path: ".bun/bin/bun").path, "/opt/homebrew/bin/bun", "/usr/local/bin/bun"], ["pm", "cache", "rm"], bunWorkingDirectory, 120),
             (["/opt/homebrew/bin/deno", "/usr/local/bin/deno"], ["clean"], nil, 120),
             ([home.appending(path: ".local/bin/uv").path, "/opt/homebrew/bin/uv", "/usr/local/bin/uv"], ["cache", "prune"], nil, 120),
-            (pnpmLocations + ["/opt/homebrew/bin/pnpm", "/usr/local/bin/pnpm"], ["store", "prune"], bunWorkingDirectory, 120),
+            (pnpmLocations, ["store", "prune"], bunWorkingDirectory, 120),
             (["/opt/homebrew/bin/brew", "/usr/local/bin/brew"], ["cleanup", "-s", "--prune=all"], nil, 120),
         ]
 
         for (locations, arguments, workingDirectory, timeout) in commands {
             guard let executable = locations.first(where: FileManager.default.isExecutableFile(atPath:)) else { continue }
-            guard arguments != ["pm", "cache", "rm"] || workingDirectory != nil else { continue }
+            let requiresWorkingDirectory = arguments == ["pm", "cache", "rm"]
+                || arguments == ["store", "prune"]
+            guard !requiresWorkingDirectory || workingDirectory != nil else { continue }
             let result = runCommand(executable, arguments, timeout: timeout, currentDirectoryURL: workingDirectory)
             if result.code != 0 { failures += 1 }
             log.append("CACHE \(executable) exit=\(result.code) \(result.output)")
@@ -363,6 +453,10 @@ enum SafeCleaner {
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         )) ?? []).map { $0.appending(path: "bin/\(name)").path }
+    }
+
+    static func isCorepackShim(_ path: String) -> Bool {
+        URL(filePath: path).resolvingSymlinksInPath().pathComponents.contains("corepack")
     }
 
     private static func cleanGeneratedArtifacts(
@@ -400,7 +494,7 @@ enum SafeCleaner {
             stagedBytes += worktreeResult.stagedBytes
             gitDirectoriesToPrune.formUnion(worktreeResult.gitDirectoriesToPrune)
         }
-        if stagedBytes >= bytesRequired {
+        if CleanupPolicy.reachedCleanupTarget(bytesRequired: bytesRequired, stagedBytes: stagedBytes) {
             log.append("SCAN artefatos dispensada: worktrees recuperam o déficit estimado")
             return (removed, blocked, failed, gitDirectoriesToPrune)
         }
@@ -516,10 +610,13 @@ enum SafeCleaner {
                 continue
             }
             removed += 1
-            log.append("REMOVED \(target.path) sizeKiB=\(sizeKiB)")
+            stagedBytes += UInt64(sizeKiB) * 1_024
+            log.append("STAGED \(target.path) sizeKiB=\(sizeKiB)")
+            if CleanupPolicy.reachedCleanupTarget(bytesRequired: bytesRequired, stagedBytes: stagedBytes) { break }
         }
 
-        if deepCleanupEnabled {
+        if deepCleanupEnabled,
+           !CleanupPolicy.reachedCleanupTarget(bytesRequired: bytesRequired, stagedBytes: stagedBytes) {
             let temporaryResult = cleanTemporaryArtifacts(
                 activeDirectories: activeDirectories,
                 log: log,
@@ -614,7 +711,7 @@ enum SafeCleaner {
             stagedBytes += bytes
             removed += 1
             gitDirectoriesToPrune.insert(candidate.commonGitDirectory)
-            log.append("REMOVED worktree limpa \(candidate.root.path) sizeKiB=\(candidate.sizeKiB) branch=\(candidate.branch)")
+            log.append("STAGED worktree limpa \(candidate.root.path) sizeKiB=\(candidate.sizeKiB) branch=\(candidate.branch)")
         }
         return (removed, blocked, failed, stagedBytes, gitDirectoriesToPrune)
     }
@@ -624,20 +721,30 @@ enum SafeCleaner {
         var worktrees: [ReclaimableWorktree] = []
         for containerPath in CleanupPolicy.worktreeContainerRoots(homePath: home.path) {
             guard FileManager.default.fileExists(atPath: containerPath), !isProtected(containerPath) else { continue }
-            let result = runCommand("/usr/bin/find", [
-                containerPath, "-mindepth", "1", "-maxdepth", "4",
-                "-name", ".git", "-type", "f", "-print0",
-            ])
+            let result = runCommand(
+                "/usr/bin/find",
+                worktreeMetadataSearchArguments(containerPath: containerPath)
+            )
             guard result.code == 0 else { continue }
             for rawPath in result.output.split(separator: "\0") {
                 let root = URL(filePath: String(rawPath)).deletingLastPathComponent()
-                guard seen.insert(root.path).inserted, !isProtected(root.path) else { continue }
+                guard seen.insert(root.path).inserted, !isProtected(root.path),
+                      !CleanupPolicy.isProjectActive(
+                          root.path,
+                          activeDirectories: activeDirectories
+                      ) else { continue }
                 let resolvedRoot = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "--show-toplevel"])
                 guard resolvedRoot.code == 0,
                       URL(filePath: resolvedRoot.output.trimmingCharacters(in: .whitespacesAndNewlines)).standardizedFileURL.path
                         == root.standardizedFileURL.path else { continue }
                 let gitDirectoryResult = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "--absolute-git-dir"])
                 let commonGitResult = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "--path-format=absolute", "--git-common-dir"])
+                guard gitDirectoryResult.code == 0, commonGitResult.code == 0 else { continue }
+                let gitDirectory = gitDirectoryResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let commonGitDirectory = commonGitResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lastActivity = worktreeLastActivity(gitDirectory: gitDirectory)
+                guard gitDirectory.hasPrefix(commonGitDirectory + "/worktrees/"),
+                      CleanupPolicy.isReclaimableWorktreeOldEnough(lastActivity: lastActivity) else { continue }
                 let branchResult = runCommand("/usr/bin/git", ["-C", root.path, "symbolic-ref", "-q", "HEAD"])
                 let headResult = runCommand("/usr/bin/git", ["-C", root.path, "rev-parse", "HEAD"])
                 let statusResult = runCommand(
@@ -645,22 +752,13 @@ enum SafeCleaner {
                     ["--no-optional-locks", "-C", root.path, "status", "--porcelain=v1", "-z"]
                 )
                 let ignoredPaths = worktreeIgnoredPaths(root)
-                guard gitDirectoryResult.code == 0, commonGitResult.code == 0,
-                      branchResult.code == 0, headResult.code == 0, statusResult.code == 0,
+                guard branchResult.code == 0, headResult.code == 0, statusResult.code == 0,
+                      !branchResult.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      statusResult.output.isEmpty,
                       ignoredPaths.map(CleanupPolicy.hasOnlyRegenerableIgnoredPaths) == true,
                       !containsTrackedProtectedPath(in: root) else { continue }
-                let gitDirectory = gitDirectoryResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
-                let commonGitDirectory = commonGitResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
                 let branch = branchResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
                 let head = headResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
-                let lastActivity = worktreeLastActivity(gitDirectory: gitDirectory)
-                guard CleanupPolicy.isReclaimableWorktree(
-                    isLinkedWorktree: gitDirectory.hasPrefix(commonGitDirectory + "/worktrees/"),
-                    hasBranch: !branch.isEmpty,
-                    isClean: statusResult.output.isEmpty,
-                    isActive: CleanupPolicy.isProjectActive(root.path, activeDirectories: activeDirectories),
-                    lastActivity: lastActivity
-                ) else { continue }
                 let sizeResult = runCommand("/usr/bin/du", ["-sk", root.path])
                 guard sizeResult.code == 0, let sizeKiB = parseDuSizeKiB(sizeResult.output),
                       sizeKiB >= minimumArtifactKiB, let lastActivity else { continue }
@@ -675,6 +773,17 @@ enum SafeCleaner {
             }
         }
         return worktrees
+    }
+
+    static func worktreeMetadataSearchArguments(containerPath: String) -> [String] {
+        let prunedNames = [".git"] + CleanupPolicy.artifactDirectoryNames.sorted()
+        var arguments = [containerPath, "-mindepth", "1", "-maxdepth", "4", "-type", "d", "("]
+        for (index, name) in prunedNames.enumerated() {
+            if index > 0 { arguments.append("-o") }
+            arguments += ["-name", name]
+        }
+        arguments += [")", "-prune", "-o", "-name", ".git", "-type", "f", "-print0"]
+        return arguments
     }
 
     static func worktreeIgnoredPaths(_ root: URL) -> [String]? {
@@ -874,7 +983,7 @@ enum SafeCleaner {
                     continue
                 }
                 removed += 1
-                log.append("REMOVED temporário \(target.path) sizeKiB=\(sizeKiB)")
+                log.append("STAGED temporário \(target.path) sizeKiB=\(sizeKiB)")
             } catch {
                 failed += 1
                 log.append("ERROR destino temporário: \(target.path) \(error.localizedDescription)")
@@ -930,7 +1039,11 @@ enum SafeCleaner {
     }
 
     private static func gitRoot(for target: URL) -> URL? {
-        let result = runCommand("/usr/bin/git", ["-C", target.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"])
+        let result = runCommand(
+            "/usr/bin/git",
+            ["-C", target.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"],
+            timeout: 5
+        )
         guard result.code == 0 else { return nil }
         let path = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
         return path.isEmpty ? nil : URL(filePath: path)
