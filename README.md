@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.1.5"><img src="https://img.shields.io/badge/VERSÃO-2.1.5-201C19?style=for-the-badge" alt="Versão 2.1.5"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.2.0"><img src="https://img.shields.io/badge/VERSÃO-2.2.0-201C19?style=for-the-badge" alt="Versão 2.2.0"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -88,6 +88,19 @@ antes e depois da remoção. Falhas e recriações entram no resultado da execu�
 > liberar. As novas tentativas usam backoff de 5 a 30 minutos; dados pessoais e projetos
 > ativos continuam protegidos.
 
+## Alívio de memória no Chrome
+
+Em **Preferências → Chrome**, clique **Mostrar pasta da extensão…**. Na página
+`chrome://extensions`, ative **Modo do desenvolvedor** e escolha **Carregar sem
+compactação** na pasta `ChromeExtension` mostrada pelo Finder. A instalação é
+necessária uma vez por perfil do Chrome.
+
+Com menos de 2 GB de RAM disponíveis, a extensão pede ao Chrome que descarte
+até 8 abas de baixa prioridade a cada 30 segundos. O Chrome permanece aberto e
+as abas continuam visíveis, mas recarregam ao serem selecionadas; conteúdo não
+salvo nelas pode se perder. A extensão não lê o conteúdo das páginas nem envia
+dados pela rede. O alívio de builds órfãos no app continua independente.
+
 ## Destino da limpeza
 
 Abra **Mais opções → Preferências** e escolha:
@@ -101,6 +114,11 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.2.0
+
+- A extensão opcional do Chrome libera memória de abas inativas quando restam menos de 2 GB de RAM. O navegador e as abas permanecem abertos; as abas descartadas recarregam ao voltar.
+- A instalação da extensão fica acessível nas Preferências do app e requer uma ativação por perfil do Chrome.
 
 ## O que mudou na v2.1.5
 

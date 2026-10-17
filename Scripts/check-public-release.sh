@@ -26,8 +26,16 @@ fi
 }
 
 version="$(<VERSION)"
+/usr/bin/grep -Fq "\"version\": \"$version\"" ChromeExtension/manifest.json || {
+    print -u2 "Chrome extension version is stale"
+    exit 1
+}
 /usr/bin/grep -Fq "v$version" README.md || { print -u2 "README version is stale"; exit 1; }
 /usr/bin/grep -Fq "\"softwareVersion\":\"$version\"" docs/index.html || {
     print -u2 "Landing page version is stale"
+    exit 1
+}
+/usr/bin/grep -Fq "v$version · Apple silicon" docs/index.html || {
+    print -u2 "Landing page download version is stale"
     exit 1
 }

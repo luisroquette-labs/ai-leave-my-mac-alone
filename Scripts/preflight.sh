@@ -74,8 +74,13 @@ cd "$project_dir"
     exit 1
 }
 /usr/bin/env node Scripts/test-web-demo.mjs
+/usr/bin/env node Scripts/test-chrome-extension.mjs
 /usr/bin/env python3 Scripts/test-web-demo-e2e.py
 swift test
 ./Scripts/make-app.sh
 ./Scripts/check-public-release.sh
 /usr/bin/codesign --verify --deep --strict "dist/AI, Leave My Mac Alone!.app"
+[[ -f "dist/AI, Leave My Mac Alone!.app/Contents/Resources/ChromeExtension/manifest.json" ]] || {
+    print -u2 "Chrome extension is missing from app bundle"
+    exit 1
+}
