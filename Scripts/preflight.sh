@@ -80,3 +80,7 @@ swift test
 ./Scripts/make-app.sh
 ./Scripts/check-public-release.sh
 /usr/bin/codesign --verify --deep --strict "dist/AI, Leave My Mac Alone!.app"
+[[ -f "dist/AI, Leave My Mac Alone!.app/Contents/Resources/ChromeExtension/manifest.json" ]] || {
+    print -u2 "Chrome extension is missing from app bundle"
+    exit 1
+}
