@@ -74,6 +74,7 @@ cd "$project_dir"
     exit 1
 }
 /usr/bin/env node Scripts/test-web-demo.mjs
+/usr/bin/env node Scripts/test-chrome-extension.mjs
 /usr/bin/env python3 Scripts/test-web-demo-e2e.py
 swift test
 ./Scripts/make-app.sh

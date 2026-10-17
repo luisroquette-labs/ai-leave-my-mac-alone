@@ -88,6 +88,19 @@ antes e depois da remoção. Falhas e recriações entram no resultado da execu�
 > liberar. As novas tentativas usam backoff de 5 a 30 minutos; dados pessoais e projetos
 > ativos continuam protegidos.
 
+## Alívio de memória no Chrome
+
+Em **Preferências → Chrome**, clique **Mostrar pasta da extensão…**. Na página
+`chrome://extensions`, ative **Modo do desenvolvedor** e escolha **Carregar sem
+compactação** na pasta `ChromeExtension` mostrada pelo Finder. A instalação é
+necessária uma vez por perfil do Chrome.
+
+Com menos de 2 GB de RAM disponíveis, a extensão pede ao Chrome que descarte
+até 8 abas de baixa prioridade a cada 30 segundos. O Chrome permanece aberto e
+as abas continuam visíveis, mas recarregam ao serem selecionadas; conteúdo não
+salvo nelas pode se perder. A extensão não lê o conteúdo das páginas nem envia
+dados pela rede. O alívio de builds órfãos no app continua independente.
+
 ## Destino da limpeza
 
 Abra **Mais opções → Preferências** e escolha:

@@ -1,3 +1,4 @@
+import AppKit
 import CleanMyMacCore
 import SwiftUI
 
@@ -9,6 +10,20 @@ struct PreferencesView: View {
             Section("Alívio de memória") {
                 Toggle("Alívio automático de memória", isOn: $monitor.automaticMemoryReliefEnabled)
                 Text("Quando a RAM livre cai abaixo de 300 MB e o swap passa de 90%, encerra automaticamente builds Next.js/tsc/webpack/vite/turbo travados que ficaram órfãos de sessões antigas. Nunca afeta Comet, Terminal, Finder ou o próprio AI, Leave My Mac Alone!.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Chrome") {
+                Text("A extensão do app descarta até 8 abas inativas a cada 30 segundos quando restam menos de 2 GB de RAM. As abas continuam abertas e recarregam ao voltar; conteúdo não salvo pode se perder.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Mostrar pasta da extensão…") {
+                    guard let folder = Bundle.main.resourceURL?.appendingPathComponent("ChromeExtension"),
+                          FileManager.default.fileExists(atPath: folder.path) else { return }
+                    NSWorkspace.shared.activateFileViewerSelecting([folder])
+                }
+                Text("Em chrome://extensions, ative Modo do desenvolvedor e use Carregar sem compactação na pasta mostrada.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -72,7 +87,7 @@ struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: monitor.cleanupDestination == .externalBackup ? 610 : 540)
+        .frame(width: 540, height: monitor.cleanupDestination == .externalBackup ? 760 : 690)
         .navigationTitle("AI, Leave My Mac Alone!")
     }
 

@@ -14,6 +14,7 @@ swift build -c release
 /bin/mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources" "$dist_dir"
 /bin/cp "$project_dir/.build/release/CleanMyMac" "$contents_dir/MacOS/CleanMyMac"
 /bin/cp "$project_dir/Resources/Info.plist" "$contents_dir/Info.plist"
+/usr/bin/ditto "$project_dir/ChromeExtension" "$contents_dir/Resources/ChromeExtension"
 if [[ -f "$project_dir/Resources/AppIcon.icns" ]]; then
     /bin/cp "$project_dir/Resources/AppIcon.icns" "$contents_dir/Resources/AppIcon.icns"
 fi

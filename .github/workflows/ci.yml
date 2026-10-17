@@ -27,4 +27,5 @@ jobs:
       - name: Run lightweight web tests
         run: |
           node Scripts/test-web-demo.mjs
+          node Scripts/test-chrome-extension.mjs
           python Scripts/test-web-demo-e2e.py
