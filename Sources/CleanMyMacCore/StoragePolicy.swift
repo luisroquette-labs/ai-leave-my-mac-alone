@@ -38,6 +38,7 @@ public enum StoragePolicy {
     public static let normalMonitoringInterval: TimeInterval = 30
     public static let pressureMonitoringInterval: TimeInterval = 5
     public static let meaningfulProgressBytes: UInt64 = 100 * 1_024 * 1_024
+    public static let emptyWorktreeScanCooldown: TimeInterval = 60 * 60
 
     public static func level(for usedFraction: Double) -> StorageLevel {
         if reaches(usedFraction, threshold: cleanupThreshold) { return .critical }
@@ -129,8 +130,17 @@ public enum StoragePolicy {
         reaches(usedFraction, threshold: hardLimit)
     }
 
-    public static func madeMeaningfulProgress(removedTargets: Int, freedBytes: UInt64) -> Bool {
-        removedTargets > 0 || freedBytes >= meaningfulProgressBytes
+    public static func madeMeaningfulProgress(freedBytes: UInt64) -> Bool {
+        freedBytes >= meaningfulProgressBytes
+    }
+
+    public static func shouldScanWholeWorktrees(
+        lastEmptyScanAt: Date?,
+        now: Date = Date()
+    ) -> Bool {
+        guard let lastEmptyScanAt else { return true }
+        let elapsed = now.timeIntervalSince(lastEmptyScanAt)
+        return elapsed < 0 || elapsed >= emptyWorktreeScanCooldown
     }
 
     public static func restoredCleanupProgress(lastCleanupAt: Date?, savedValue: Bool?) -> Bool {

@@ -11,6 +11,7 @@ final class StorageMonitor: ObservableObject {
     @Published private(set) var lastAction = "Iniciando monitoramento…"
     @Published private(set) var isSampling = false
     @Published private(set) var isCleaning = false
+    @Published private(set) var unresolvedShortfallBytes: UInt64 = 0
     @Published private(set) var launchAtLoginEnabled = false
     @Published private(set) var launchAtLoginNeedsApproval = false
     @Published private(set) var cleanupDestination: CleanupDestination
@@ -41,6 +42,7 @@ final class StorageMonitor: ObservableObject {
     private var lastCleanupMadeProgress: Bool
     private var noProgressStreak: Int
     private var lastMemoryReliefAt: Date?
+    private var criticalAlertShown = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -169,10 +171,7 @@ final class StorageMonitor: ObservableObject {
                 externalBackupPath: externalBackupPath
             )
             let now = Date()
-            lastCleanupMadeProgress = StoragePolicy.madeMeaningfulProgress(
-                removedTargets: result.removedTargets,
-                freedBytes: result.freedBytes
-            )
+            lastCleanupMadeProgress = StoragePolicy.madeMeaningfulProgress(freedBytes: result.freedBytes)
             noProgressStreak = lastCleanupMadeProgress ? 0 : noProgressStreak + 1
             lastCleanupAt = now
             defaults.set(now, forKey: Keys.lastCleanupAt)
@@ -181,6 +180,7 @@ final class StorageMonitor: ObservableObject {
             isCleaning = false
             await sampleNow(allowAutomation: false)
             let shortfall = snapshot.map(StoragePolicy.bytesRequiredToGetBelowHardLimit) ?? 0
+            unresolvedShortfallBytes = shortfall
             let percent = snapshot?.usedPercent ?? 0
             if shortfall > 0 {
                 let fraction = snapshot?.usedFraction ?? StoragePolicy.hardLimit
@@ -190,15 +190,22 @@ final class StorageMonitor: ObservableObject {
                     noProgressStreak: noProgressStreak
                 ))
                 let missing = ByteCountFormatter.string(fromByteCount: Int64(shortfall), countStyle: .file)
-                let targetMessage = "Ainda faltam liberar \(missing) para ficar abaixo de 80%; dados protegidos foram preservados."
+                let protected = result.blockedTargets == 1
+                    ? "1 alvo ativo foi preservado"
+                    : "\(result.blockedTargets) alvos ativos foram preservados"
+                let targetMessage = "A limpeza automática não consegue liberar \(missing) sem tocar dados protegidos; \(protected)."
                 lastAction = "Faltam liberar \(missing) para ficar abaixo de 80%. \(result.summary)"
                 SafeCleaner.record("TARGET não atingida faltamBytes=\(shortfall) uso=\(percent)%")
                 await notify(
-                    title: "SSD acima do limite seguro",
+                    title: "AÇÃO NECESSÁRIA: SSD em \(percent)%",
                     body: "\(targetMessage) Nova tentativa em \(retryDescription(retrySeconds)).",
-                    critical: true
+                    critical: true,
+                    identifier: "storage-target-unresolved"
                 )
             } else {
+                UNUserNotificationCenter.current().removeDeliveredNotifications(
+                    withIdentifiers: ["storage-target-unresolved"]
+                )
                 lastAction = result.summary
                 SafeCleaner.record("TARGET atingida uso=\(percent)%")
                 await notify(
@@ -300,6 +307,8 @@ final class StorageMonitor: ObservableObject {
     private func react(to sample: StorageSnapshot, allowAutomation: Bool) async {
         if StoragePolicy.shouldResetWarning(for: sample.usedFraction) {
             warningLatched = false
+            unresolvedShortfallBytes = 0
+            criticalAlertShown = false
             defaults.set(false, forKey: Keys.warningLatched)
         }
 
@@ -334,22 +343,60 @@ final class StorageMonitor: ObservableObject {
 
     private func requestNotificationAuthorization() async {
         guard BundleContext.isBundledApp else { return }
-        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+        do {
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+            if !granted {
+                SafeCleaner.record("WARN notificações desativadas pelo macOS")
+                showCriticalStorageAlertIfNeeded()
+            }
+        } catch {
+            SafeCleaner.record("ERROR autorização de notificações: \(error.localizedDescription)")
+            showCriticalStorageAlertIfNeeded()
+        }
     }
 
-    private func notify(title: String, body: String, critical: Bool) async {
+    private func showCriticalStorageAlertIfNeeded() {
+        guard !criticalAlertShown, let snapshot,
+              StoragePolicy.isAtOrAboveHardLimit(snapshot.usedFraction) else { return }
+        criticalAlertShown = true
+        let missing = ByteCountFormatter.string(
+            fromByteCount: Int64(StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot)),
+            countStyle: .file
+        )
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "SSD em \(snapshot.usedPercent)%: ação necessária"
+        alert.informativeText = "A limpeza automática não consegue garantir o teto de 80%. Ainda faltam liberar \(missing) sem tocar projetos ativos ou dados protegidos."
+        alert.addButton(withTitle: "Abrir monitor")
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+
+    private func notify(
+        title: String,
+        body: String,
+        critical: Bool,
+        identifier: String? = nil
+    ) async {
         guard BundleContext.isBundledApp else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        if critical { content.sound = .default }
-        try? await UNUserNotificationCenter.current().add(
-            UNNotificationRequest(
-                identifier: "storage-\(Int(Date().timeIntervalSince1970))",
-                content: content,
-                trigger: nil
+        if critical {
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+        }
+        do {
+            try await UNUserNotificationCenter.current().add(
+                UNNotificationRequest(
+                    identifier: identifier ?? "storage-\(Int(Date().timeIntervalSince1970))",
+                    content: content,
+                    trigger: nil
+                )
             )
-        )
+        } catch {
+            SafeCleaner.record("ERROR envio de notificação: \(error.localizedDescription)")
+        }
     }
 
     private func retryDescription(_ seconds: Int) -> String {

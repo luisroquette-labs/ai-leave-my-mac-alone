@@ -217,6 +217,7 @@ enum SafeCleaner {
     }
 
     private static let aggressiveCacheCleanupKey = "aggressiveCacheCleanupDatesByPath"
+    private static let lastEmptyWorktreeScanKey = "lastEmptyWorktreeScanAt"
     private static let minimumCacheKiB = 10 * 1_024
 
     private struct RegenerableCacheCandidate {
@@ -481,7 +482,10 @@ enum SafeCleaner {
             return (0, 0, 0, [])
         }
         var stagedBytes: UInt64 = 0
-        if deepCleanupEnabled, destination == .deleteBatch, bytesRequired > 0 {
+        if deepCleanupEnabled, destination == .deleteBatch, bytesRequired > 0,
+           StoragePolicy.shouldScanWholeWorktrees(
+               lastEmptyScanAt: UserDefaults.standard.object(forKey: lastEmptyWorktreeScanKey) as? Date
+           ) {
             let worktreeResult = cleanReclaimableWorktrees(
                 bytesRequired: bytesRequired,
                 activeDirectories: activeDirectories,
@@ -493,6 +497,13 @@ enum SafeCleaner {
             failed += worktreeResult.failed
             stagedBytes += worktreeResult.stagedBytes
             gitDirectoriesToPrune.formUnion(worktreeResult.gitDirectoriesToPrune)
+            if worktreeResult.scannedCandidates == 0 {
+                UserDefaults.standard.set(Date(), forKey: lastEmptyWorktreeScanKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: lastEmptyWorktreeScanKey)
+            }
+        } else if deepCleanupEnabled, destination == .deleteBatch, bytesRequired > 0 {
+            log.append("SCAN worktrees dispensada: última varredura vazia há menos de 1 hora")
         }
         if CleanupPolicy.reachedCleanupTarget(bytesRequired: bytesRequired, stagedBytes: stagedBytes) {
             log.append("SCAN artefatos dispensada: worktrees recuperam o déficit estimado")
@@ -643,7 +654,7 @@ enum SafeCleaner {
         activeDirectories: [String],
         log: CleanupLog,
         disposal: inout DisposalSession
-    ) -> (removed: Int, blocked: Int, failed: Int, stagedBytes: UInt64, gitDirectoriesToPrune: Set<String>) {
+    ) -> (removed: Int, blocked: Int, failed: Int, stagedBytes: UInt64, gitDirectoriesToPrune: Set<String>, scannedCandidates: Int) {
         let scanStartedAt = Date()
         let candidates = reclaimableWorktrees(activeDirectories: activeDirectories)
             .sorted {
@@ -713,7 +724,7 @@ enum SafeCleaner {
             gitDirectoriesToPrune.insert(candidate.commonGitDirectory)
             log.append("STAGED worktree limpa \(candidate.root.path) sizeKiB=\(candidate.sizeKiB) branch=\(candidate.branch)")
         }
-        return (removed, blocked, failed, stagedBytes, gitDirectoriesToPrune)
+        return (removed, blocked, failed, stagedBytes, gitDirectoriesToPrune, candidates.count)
     }
 
     private static func reclaimableWorktrees(activeDirectories: [String]) -> [ReclaimableWorktree] {

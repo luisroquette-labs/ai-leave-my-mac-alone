@@ -67,12 +67,9 @@ import Testing
     ))
     #expect(StoragePolicy.monitoringInterval(for: 0.74) == 30)
     #expect(StoragePolicy.monitoringInterval(for: 0.75) == 5)
-    #expect(!StoragePolicy.madeMeaningfulProgress(removedTargets: 0, freedBytes: 1_376_256))
-    #expect(StoragePolicy.madeMeaningfulProgress(removedTargets: 1, freedBytes: 0))
-    #expect(StoragePolicy.madeMeaningfulProgress(
-        removedTargets: 0,
-        freedBytes: StoragePolicy.meaningfulProgressBytes
-    ))
+    #expect(!StoragePolicy.madeMeaningfulProgress(freedBytes: 1_376_256))
+    #expect(!StoragePolicy.madeMeaningfulProgress(freedBytes: 0))
+    #expect(StoragePolicy.madeMeaningfulProgress(freedBytes: StoragePolicy.meaningfulProgressBytes))
     #expect(StoragePolicy.restoredCleanupProgress(lastCleanupAt: nil, savedValue: nil))
     #expect(!StoragePolicy.restoredCleanupProgress(lastCleanupAt: now, savedValue: nil))
     #expect(StoragePolicy.restoredCleanupProgress(lastCleanupAt: now, savedValue: true))
@@ -128,6 +125,25 @@ import Testing
         automaticPreference: true,
         isAutomatic: true,
         usedFraction: 0.95
+    ))
+}
+
+// REGRESSÃO (21/10/2026): a varredura de worktrees levava até 8 minutos,
+// encontrava zero candidatos e era repetida em toda rodada de emergência.
+@Test func emptyWholeWorktreeScanGetsOneHourCooldown() {
+    let now = Date(timeIntervalSince1970: 100_000)
+    #expect(StoragePolicy.shouldScanWholeWorktrees(lastEmptyScanAt: nil, now: now))
+    #expect(!StoragePolicy.shouldScanWholeWorktrees(
+        lastEmptyScanAt: now.addingTimeInterval(-3_599),
+        now: now
+    ))
+    #expect(StoragePolicy.shouldScanWholeWorktrees(
+        lastEmptyScanAt: now.addingTimeInterval(-3_600),
+        now: now
+    ))
+    #expect(StoragePolicy.shouldScanWholeWorktrees(
+        lastEmptyScanAt: now.addingTimeInterval(1),
+        now: now
     ))
 }
 
