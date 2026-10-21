@@ -65,7 +65,8 @@ struct MenuBarView: View {
     }
 
     private var statusTitle: String {
-        switch monitor.level {
+        if monitor.unresolvedShortfallBytes > 0 { return "Teto de 80% não protegido" }
+        return switch monitor.level {
         case .normal: "Armazenamento saudável"
         case .warning: "Armazenamento em atenção"
         case .critical: "Limpeza necessária"

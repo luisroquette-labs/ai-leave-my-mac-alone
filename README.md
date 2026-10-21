@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.2.0"><img src="https://img.shields.io/badge/VERSÃO-2.2.0-201C19?style=for-the-badge" alt="Versão 2.2.0"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.2.1"><img src="https://img.shields.io/badge/VERSÃO-2.2.1-201C19?style=for-the-badge" alt="Versão 2.2.1"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -114,6 +114,12 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.2.1
+
+- Uma varredura completa de worktrees que não encontra nada deixa de ser repetida por uma hora; as rodadas seguintes atacam diretamente artefatos e caches regeneráveis.
+- O app só conta progresso quando o espaço livre realmente aumenta pelo menos 100 MB, mesmo se escritores concorrentes recriarem o que acabou de ser removido.
+- Quando a limpeza não consegue proteger o teto de 80%, o menu e um alerta nativo informam explicitamente o déficit; o alerta funciona mesmo quando o macOS recusa notificações para a assinatura ad-hoc.
 
 ## O que mudou na v2.2.0
 
