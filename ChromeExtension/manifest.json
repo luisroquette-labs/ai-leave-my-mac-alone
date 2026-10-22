@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI, Leave My Mac Alone! — Chrome",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Libera memória de abas inativas quando a RAM do Mac fica baixa.",
   "minimum_chrome_version": "120",
   "permissions": ["alarms", "system.memory", "tabs"],

@@ -121,6 +121,10 @@ public enum StoragePolicy {
             : 0
     }
 
+    public static func hasUnresolvedHardLimit(_ snapshot: StorageSnapshot) -> Bool {
+        bytesRequiredToGetBelowHardLimit(snapshot) > 0
+    }
+
     public static func monitoringInterval(for usedFraction: Double) -> TimeInterval {
         reaches(usedFraction, threshold: warningThreshold)
             ? pressureMonitoringInterval
