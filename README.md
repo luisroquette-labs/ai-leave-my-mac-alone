@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.2.1"><img src="https://img.shields.io/badge/VERSÃO-2.2.1-201C19?style=for-the-badge" alt="Versão 2.2.1"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.3.0"><img src="https://img.shields.io/badge/VERSÃO-2.3.0-201C19?style=for-the-badge" alt="Versão 2.3.0"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
 </p>
 
@@ -46,7 +46,7 @@ regeneráveis. O foco não é “limpar o Mac”; é impedir que agentes de cód
 consumam silenciosamente todo o SSD.
 
 - **Autônomo:** inicia com a sessão e verifica o disco a cada 5 segundos acima de 75%.
-- **Um clique:** `Limpar agora` executa a mesma política segura sob demanda.
+- **Três níveis:** Seguro, Profundo e Emergência podem ser executados agora ou autorizados para automação.
 - **Local:** nenhum dado, caminho ou evento sai do computador.
 - **Auditável:** código, regras e log de cada execução são públicos ou locais.
 
@@ -73,20 +73,32 @@ interface. Se o aplicativo exibe **80%**, o retry de proteção já está ativo.
 | Pode remover | Nunca remove |
 |---|---|
 | Caches de npm, Bun, Deno e Homebrew | Documentos, Mesa, Downloads e mídia pessoal |
-| Builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em `/private/tmp` | Perfis de navegador, sessões Claude/Codex e temporários desconhecidos |
+| Builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em `/private/tmp` | Perfis de navegador, sessões atuais Claude/Codex e temporários desconhecidos |
 | `node_modules`, `.next`, `.build`, `.turbo`, `.venv`, `DerivedData` e `dist` com 100 MB ou mais | Worktrees sujas, ativas, recentes, sem branch ou com ignorados desconhecidos |
 | Artefatos ignorados dentro de um repositório Git | Projetos usados por qualquer processo do utilizador |
 | Somente após verificar Git e processos novamente | Lixeira, Docker, credenciais e discos externos não selecionados |
+| No nível Emergência autorizado: arquivos do Codex arquivados há 7 dias e bundles de VM do Claude sem arquivos abertos | Histórico recente do Codex e qualquer alvo em uso ou não verificável |
 
 A inspeção de processos falha de forma fechada: se o macOS não permitir
 confirmar que um projeto está inativo, o alvo é preservado. O Git é comparado
 antes e depois da remoção. Falhas e recriações entram no resultado da execução.
 
 > O teto de 80% é **best-effort**, mas nunca é tratado como concluído enquanto o
-> disco continuar acima dele. Em emergência, o aplicativo força a varredura profunda
-> segura, amplia a tentativa para caches nativos e informa quantos bytes ainda faltam
+> disco continuar acima dele. O aplicativo respeita o maior nível automático autorizado,
+> amplia a tentativa apenas dentro dessa permissão e informa quantos bytes ainda faltam
 > liberar. As novas tentativas usam backoff de 5 a 30 minutos; dados pessoais e projetos
 > ativos continuam protegidos.
+
+## Níveis de limpeza e permissões
+
+| Nível | Manual | Automático autorizado | Escopo adicional |
+|---|---|---|---|
+| **Seguro** | Botão próprio | Padrão | Caches e builds regeneráveis verificados |
+| **Profundo** | Botão próprio | Escolha persistente | Worktrees inativas e temporários reconhecíveis |
+| **Emergência** | Confirmação explícita | Autorização persistente separada | Arquivos do Codex arquivados há 7 dias e bundles de VM do Claude sem arquivos abertos |
+
+O nível automático é um teto: selecionar Seguro impede escalada silenciosa para
+Profundo ou Emergência. Todo descarte continua usando um lote exato e auditável.
 
 ## Alívio de memória no Chrome
 
@@ -114,6 +126,12 @@ Abra **Mais opções → Preferências** e escolha:
 O backup externo aceita somente uma pasta gravável em um volume não interno. Se
 o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
 o original permanece recuperável e a execução falha de forma fechada.
+
+## O que mudou na v2.3.0
+
+- Três botões independentes executam limpeza Segura, Profunda ou de Emergência.
+- O utilizador escolhe o maior nível permitido para automação; Emergência exige autorização específica e persistente.
+- O nível Emergência retém sete dias de arquivos do Codex, remove apenas bundles regeneráveis do Claude sem arquivos abertos e continua bloqueando sessões atuais, projetos e dados pessoais.
 
 ## O que mudou na v2.2.1
 

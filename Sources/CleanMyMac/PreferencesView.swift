@@ -29,8 +29,15 @@ struct PreferencesView: View {
             }
 
             Section("Modo de limpeza") {
-                Toggle("Automática em modo profundo", isOn: $monitor.deepCleanupEnabled)
-                Text("Amplia a limpeza automática para builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em /private/tmp, mantendo os bloqueios de segurança.")
+                Picker("Nível automático máximo", selection: Binding(
+                    get: { monitor.automaticCleanupLevel },
+                    set: { monitor.setAutomaticCleanupLevel($0) }
+                )) {
+                    Text("Seguro").tag(CleanupLevel.safe)
+                    Text("Profundo").tag(CleanupLevel.deep)
+                    Text("Emergência").tag(CleanupLevel.emergency)
+                }
+                Text("Seguro limpa caches e builds. Profundo inclui worktrees inativas e temporários. Emergência, após autorização específica, pode remover arquivos do Codex arquivados há 7 dias e bundles de VM do Claude sem arquivos abertos.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -81,7 +88,7 @@ struct PreferencesView: View {
             }
 
             Section("Proteções permanentes") {
-                Text("Somente .next/node_modules ignorados pelo Git e temporários reconhecíveis, inativos e acima de 100 MB entram no lote. Arquivos pessoais, perfis, credenciais, projetos ativos e itens antigos da Lixeira permanecem intocados.")
+                Text("Arquivos pessoais, perfis, credenciais, sessões atuais, projetos ativos e itens antigos da Lixeira permanecem intocados em todos os níveis.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

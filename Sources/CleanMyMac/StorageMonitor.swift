@@ -21,10 +21,10 @@ final class StorageMonitor: ObservableObject {
         didSet { defaults.set(automaticCleanupEnabled, forKey: Keys.automaticCleanup) }
     }
 
-    @Published var deepCleanupEnabled: Bool {
+    @Published private(set) var automaticCleanupLevel: CleanupLevel {
         didSet {
-            defaults.set(deepCleanupEnabled, forKey: Keys.deepCleanup)
-            SafeCleaner.record("MODE limpeza profunda=\(deepCleanupEnabled)")
+            defaults.set(automaticCleanupLevel.rawValue, forKey: Keys.automaticCleanupLevel)
+            SafeCleaner.record("MODE nível automático=\(automaticCleanupLevel.rawValue)")
         }
     }
 
@@ -52,7 +52,9 @@ final class StorageMonitor: ObservableObject {
         externalBackupPath = defaults.string(forKey: Keys.externalBackupPath)
         let cleanupEnabled = defaults.object(forKey: Keys.automaticCleanup) as? Bool ?? true
         automaticCleanupEnabled = cleanupEnabled
-        deepCleanupEnabled = defaults.bool(forKey: Keys.deepCleanup)
+        automaticCleanupLevel = CleanupLevel(
+            rawValue: defaults.string(forKey: Keys.automaticCleanupLevel) ?? ""
+        ) ?? (defaults.bool(forKey: Keys.deepCleanup) ? .deep : .safe)
         automaticMemoryReliefEnabled = defaults.object(forKey: Keys.automaticMemoryRelief) as? Bool ?? true
         defaults.set(cleanupEnabled, forKey: Keys.automaticCleanup)
         warningLatched = defaults.bool(forKey: Keys.warningLatched)
@@ -142,31 +144,30 @@ final class StorageMonitor: ObservableObject {
         }
     }
 
-    func cleanNow(isAutomatic: Bool = false, deepCleanup: Bool? = nil) {
+    func cleanNow(isAutomatic: Bool = false, level requestedLevel: CleanupLevel? = nil) {
         guard !isCleaning else {
             lastAction = "Uma limpeza já está em andamento."
             return
         }
         let startingFraction = snapshot?.usedFraction ?? 0
-        let useDeepCleanup = StoragePolicy.shouldUseDeepCleanup(
-            requested: deepCleanup,
-            automaticPreference: deepCleanupEnabled,
+        let cleanupLevel = StoragePolicy.cleanupLevel(
+            requested: requestedLevel,
+            automaticMaximum: automaticCleanupLevel,
             isAutomatic: isAutomatic,
             usedFraction: startingFraction
         )
-        if isAutomatic, useDeepCleanup, !deepCleanupEnabled {
-            SafeCleaner.record("MODE escalada profunda automática uso=\(Int((startingFraction * 100).rounded()))%")
-        }
         isCleaning = true
-        lastAction = useDeepCleanup
-            ? "Limpeza profunda iniciada…"
-            : (isAutomatic ? "Limpeza automática iniciada…" : "Limpeza segura iniciada…")
+        lastAction = switch cleanupLevel {
+        case .safe: isAutomatic ? "Limpeza automática segura iniciada…" : "Limpeza segura iniciada…"
+        case .deep: "Limpeza profunda iniciada…"
+        case .emergency: "Limpeza de emergência iniciada…"
+        }
 
         Task {
             let result = await SafeCleaner.run(
                 includeNativeCaches: !isAutomatic,
                 escalateNativeCachesAtHardLimit: isAutomatic,
-                deepCleanupEnabled: useDeepCleanup,
+                cleanupLevel: cleanupLevel,
                 destination: cleanupDestination,
                 externalBackupPath: externalBackupPath
             )
@@ -281,6 +282,19 @@ final class StorageMonitor: ObservableObject {
         }
         cleanupDestination = destination
         defaults.set(destination.rawValue, forKey: Keys.cleanupDestination)
+    }
+
+    func setAutomaticCleanupLevel(_ level: CleanupLevel) {
+        if level == .emergency, automaticCleanupLevel != .emergency {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Autorizar limpeza automática de emergência?"
+            alert.informativeText = "Quando o SSD continuar acima de 80%, o app poderá apagar arquivos do Codex arquivados há pelo menos 7 dias e bundles de VM do Claude sem arquivos abertos. Sessões atuais, projetos e dados pessoais continuam protegidos."
+            alert.addButton(withTitle: "Autorizar Emergência")
+            alert.addButton(withTitle: "Cancelar")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        automaticCleanupLevel = level
     }
 
     func chooseExternalBackupFolder() {
@@ -445,6 +459,7 @@ final class StorageMonitor: ObservableObject {
     private enum Keys {
         static let automaticCleanup = "automaticCleanupEnabled"
         static let deepCleanup = "deepCleanupEnabled"
+        static let automaticCleanupLevel = "automaticCleanupLevel"
         static let warningLatched = "warningLatched"
         static let lastCleanupAt = "lastCleanupAt"
         static let lastCleanupMadeProgress = "lastCleanupMadeProgress"

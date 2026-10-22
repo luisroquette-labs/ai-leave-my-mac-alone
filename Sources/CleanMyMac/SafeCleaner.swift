@@ -55,7 +55,7 @@ enum SafeCleaner {
     static func run(
         includeNativeCaches: Bool = true,
         escalateNativeCachesAtHardLimit: Bool = false,
-        deepCleanupEnabled: Bool = false,
+        cleanupLevel: CleanupLevel = .safe,
         destination: CleanupDestination = .deleteBatch,
         externalBackupPath: String? = nil
     ) async -> CleanupResult {
@@ -63,7 +63,7 @@ enum SafeCleaner {
             runSynchronously(
                 includeNativeCaches: includeNativeCaches,
                 escalateNativeCachesAtHardLimit: escalateNativeCachesAtHardLimit,
-                deepCleanupEnabled: deepCleanupEnabled,
+                cleanupLevel: cleanupLevel,
                 destination: destination,
                 externalBackupPath: externalBackupPath
             )
@@ -117,7 +117,7 @@ enum SafeCleaner {
     private static func runSynchronously(
         includeNativeCaches: Bool,
         escalateNativeCachesAtHardLimit: Bool,
-        deepCleanupEnabled: Bool,
+        cleanupLevel: CleanupLevel,
         destination: CleanupDestination,
         externalBackupPath: String?
     ) -> CleanupResult {
@@ -126,7 +126,7 @@ enum SafeCleaner {
         var blockedTargets = 0
         var failedTargets = 0
         let log = CleanupLog(url: logURL)
-        log.append("START armazenamento seguro destino=\(destination.rawValue) profunda=\(deepCleanupEnabled)")
+        log.append("START armazenamento seguro destino=\(destination.rawValue) nivel=\(cleanupLevel.rawValue)")
 
         if destination == .deleteBatch, !DisposalSession.recoverPendingDeleteBatch(log: log) {
             log.append("END liberados=0 removidos=0 bloqueados=0 falhas=1")
@@ -154,7 +154,7 @@ enum SafeCleaner {
             externalBackupPath: externalBackupPath
         )
         let artifactResult = cleanGeneratedArtifacts(
-            deepCleanupEnabled: deepCleanupEnabled,
+            deepCleanupEnabled: cleanupLevel.includesDeepCleanup,
             bytesRequired: StoragePolicy.bytesRequiredToGetBelowHardLimit(startingSnapshot),
             destination: destination,
             log: log,
@@ -173,7 +173,7 @@ enum SafeCleaner {
             }
         }
 
-        if destructivePipelineReady, deepCleanupEnabled, destination == .deleteBatch,
+        if destructivePipelineReady, cleanupLevel.includesDeepCleanup, destination == .deleteBatch,
            let snapshot = try? StorageReader.read(),
            StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot) > 0 {
             let cacheResult = cleanRegenerableCaches(
@@ -186,8 +186,22 @@ enum SafeCleaner {
             blockedTargets += cacheResult.blocked
             failedTargets += cacheResult.failed
             destructivePipelineReady = cacheResult.finalized
-        } else if !destructivePipelineReady, deepCleanupEnabled, destination == .deleteBatch {
+        } else if !destructivePipelineReady, cleanupLevel.includesDeepCleanup, destination == .deleteBatch {
             log.append("CACHE agressivo ignorado: lote anterior não foi finalizado")
+        }
+        if destructivePipelineReady, cleanupLevel.includesEmergencyCleanup,
+           let snapshot = try? StorageReader.read(),
+           StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot) > 0 {
+            let emergencyResult = cleanEmergencyArtifacts(
+                bytesRequired: StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot),
+                destination: destination,
+                externalBackupPath: externalBackupPath,
+                log: log
+            )
+            removedTargets += emergencyResult.removed
+            blockedTargets += emergencyResult.blocked
+            failedTargets += emergencyResult.failed
+            destructivePipelineReady = emergencyResult.finalized
         }
         let fractionAfterArtifacts = try? StorageReader.read().usedFraction
         let shouldCleanNativeCaches = StoragePolicy.shouldCleanNativeCaches(
@@ -351,6 +365,100 @@ enum SafeCleaner {
     private static func aggressiveCacheCleanupDates() -> [String: Date] {
         (UserDefaults.standard.dictionary(forKey: aggressiveCacheCleanupKey) ?? [:])
             .compactMapValues { $0 as? Date }
+    }
+
+    private struct EmergencyCandidate {
+        let target: URL
+        let isDirectory: Bool
+    }
+
+    private static func cleanEmergencyArtifacts(
+        bytesRequired: UInt64,
+        destination: CleanupDestination,
+        externalBackupPath: String?,
+        log: CleanupLog
+    ) -> (removed: Int, blocked: Int, failed: Int, finalized: Bool) {
+        guard bytesRequired > 0 else { return (0, 0, 0, true) }
+        var disposal = DisposalSession(destination: destination, externalBackupPath: externalBackupPath)
+        var removed = 0
+        var blocked = 0
+        var failed = 0
+        var stagedBytes: UInt64 = 0
+        let targetBytes = CleanupPolicy.bytesToStageFromAggressiveCaches(shortfall: bytesRequired)
+
+        var candidates = archivedSessionCandidates().map {
+            EmergencyCandidate(target: $0, isDirectory: false)
+        }
+        candidates += CleanupPolicy.emergencyDirectoryPaths(homePath: home.path).map {
+            EmergencyCandidate(target: URL(filePath: $0, directoryHint: .isDirectory), isDirectory: true)
+        }
+
+        for candidate in candidates where stagedBytes < targetBytes {
+            let target = candidate.target
+            let path = target.standardizedFileURL.path
+            guard FileManager.default.fileExists(atPath: path),
+                  let values = try? target.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey]),
+                  values.isSymbolicLink != true,
+                  candidate.isDirectory ? values.isDirectory == true : values.isRegularFile == true,
+                  path == target.resolvingSymlinksInPath().standardizedFileURL.path else { continue }
+
+            let openFiles = candidate.isDirectory
+                ? runCommand("/usr/sbin/lsof", ["+D", path], timeout: 15)
+                : runCommand("/usr/sbin/lsof", [path], timeout: 5)
+            guard confirmsNoOpenFiles(openFiles) else {
+                blocked += 1
+                log.append("BLOCK emergência em uso ou não verificável: \(path)")
+                continue
+            }
+
+            let sizeResult = runCommand("/usr/bin/du", ["-sk", path])
+            guard sizeResult.code == 0, let sizeKiB = parseDuSizeKiB(sizeResult.output), sizeKiB > 0 else {
+                failed += 1
+                log.append("ERROR medição de emergência: \(path)")
+                continue
+            }
+            do {
+                _ = try disposal.stage(target, expectedBytes: UInt64(sizeKiB) * 1_024)
+                guard !FileManager.default.fileExists(atPath: path) else {
+                    failed += 1
+                    log.append("ERROR verificação pós-emergência: \(path)")
+                    continue
+                }
+                removed += 1
+                stagedBytes += UInt64(sizeKiB) * 1_024
+                log.append("EMERGENCY STAGED \(path) sizeKiB=\(sizeKiB)")
+            } catch {
+                failed += 1
+                log.append("ERROR emergência: \(path) \(error.localizedDescription)")
+            }
+        }
+        guard disposal.finalize(log: log) else { return (0, blocked, failed + 1, false) }
+        log.append("EMERGENCY removidos=\(removed) estimadoBytes=\(stagedBytes)")
+        return (removed, blocked, failed, true)
+    }
+
+    private static func archivedSessionCandidates(now: Date = Date()) -> [URL] {
+        let root = home.appending(path: ".codex/archives", directoryHint: .isDirectory)
+        guard let enumerator = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+        return enumerator.compactMap { item -> (URL, Date)? in
+            guard let url = item as? URL,
+                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]),
+                  values.isRegularFile == true, values.isSymbolicLink != true,
+                  CleanupPolicy.isEligibleArchivedSession(
+                      path: url.path,
+                      resolvedPath: url.resolvingSymlinksInPath().path,
+                      homePath: home.path,
+                      modificationDate: values.contentModificationDate,
+                      now: now
+                  ), let date = values.contentModificationDate else { return nil }
+            return (url, date)
+        }
+        .sorted { $0.1 < $1.1 }
+        .map(\.0)
     }
 
     static func confirmsNoOpenFiles(_ result: CommandResult) -> Bool {

@@ -14,10 +14,11 @@ cd "$project_dir"
     print -u2 "Visible cleanup progress is missing"
     exit 1
 }
-/usr/bin/grep -Fq 'monitor.cleanNow(deepCleanup: requestedDeepCleanup)' Sources/CleanMyMac/MenuBarView.swift \
+/usr/bin/grep -Fq 'monitor.cleanNow(level: requestedCleanupLevel)' Sources/CleanMyMac/MenuBarView.swift \
     && /usr/bin/grep -Fq 'Button("Limpar agora")' Sources/CleanMyMac/MenuBarView.swift \
-    && /usr/bin/grep -Fq 'Button("Limpeza Profunda")' Sources/CleanMyMac/MenuBarView.swift || {
-    print -u2 "Independent normal and deep cleanup actions are missing"
+    && /usr/bin/grep -Fq 'Button("Limpeza Profunda")' Sources/CleanMyMac/MenuBarView.swift \
+    && /usr/bin/grep -Fq 'Button("Limpeza de Emergência")' Sources/CleanMyMac/MenuBarView.swift || {
+    print -u2 "Independent safe, deep and emergency cleanup actions are missing"
     exit 1
 }
 
@@ -53,7 +54,10 @@ cd "$project_dir"
     exit 1
 }
 
-/usr/bin/grep -Fq 'if destructivePipelineReady, deepCleanupEnabled, destination == .deleteBatch,' Sources/CleanMyMac/SafeCleaner.swift \
+/usr/bin/grep -Fq 'if destructivePipelineReady, cleanupLevel.includesDeepCleanup, destination == .deleteBatch,' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'if destructivePipelineReady, cleanupLevel.includesEmergencyCleanup,' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'CleanupPolicy.isEligibleArchivedSession(' Sources/CleanMyMac/SafeCleaner.swift \
+    && /usr/bin/grep -Fq 'BLOCK emergência em uso ou não verificável' Sources/CleanMyMac/SafeCleaner.swift \
     && ! /usr/bin/grep -Fq 'RECHECK worktrees' Sources/CleanMyMac/SafeCleaner.swift \
     && /usr/bin/grep -Fq 'private static let aggressiveCacheCleanupKey = "aggressiveCacheCleanupDatesByPath"' Sources/CleanMyMac/SafeCleaner.swift \
     && /usr/bin/grep -Fq 'BLOCK cache de agente em uso' Sources/CleanMyMac/SafeCleaner.swift \

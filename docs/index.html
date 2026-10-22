@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="polish.css">
   <title>AI, Leave My Mac Alone! — Proteção de SSD para quem cria com IA</title>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"AI, Leave My Mac Alone!","operatingSystem":"macOS 14 ou posterior em Apple silicon","applicationCategory":"UtilitiesApplication","softwareVersion":"2.2.1","description":"Proteção autônoma de SSD para utilizadores de Codex, Claude Code e agentes de programação. Limpa artefatos regeneráveis com segurança.","downloadUrl":"https://luisroquette-labs.github.io/ai-leave-my-mac-alone/#download","license":"https://opensource.org/license/mit","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Luis Roquette","url":"https://github.com/luisroquette"}}
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"AI, Leave My Mac Alone!","operatingSystem":"macOS 14 ou posterior em Apple silicon","applicationCategory":"UtilitiesApplication","softwareVersion":"2.3.0","description":"Proteção autônoma de SSD para utilizadores de Codex, Claude Code e agentes de programação. Três níveis de limpeza com permissões explícitas.","downloadUrl":"https://luisroquette-labs.github.io/ai-leave-my-mac-alone/#download","license":"https://opensource.org/license/mit","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Luis Roquette","url":"https://github.com/luisroquette"}}
   </script>
 </head>
 <body>
@@ -27,7 +27,7 @@
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
   <header class="nav" data-nav>
     <a class="brand" href="#top"><img src="img/app-icon.svg" alt="" width="36" height="36"><span>AI, Leave My Mac Alone!</span></a>
-    <nav aria-label="Navegação principal"><a href="#ai-workflow">O problema da IA</a><a href="#proof">Como funciona</a><a href="#safety">Segurança</a><a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone">Código</a><a class="nav-cta" href="#download" data-download-cta>Baixar grátis</a></nav>
+    <nav aria-label="Navegação principal"><a href="#ai-workflow">O problema da IA</a><a href="#proof">Como funciona</a><a href="#levels">Níveis</a><a href="#safety">Segurança</a><a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone">Código</a><a class="nav-cta" href="#download" data-download-cta>Baixar grátis</a></nav>
   </header>
 
   <main id="main">
@@ -38,9 +38,9 @@
       <div class="hero-copy reveal">
         <p class="eyebrow"><i></i> Feito para Codex, Claude Code e agentes de programação</p>
         <h1>Sua IA escreve código.<br><em>E lota o SSD junto.</em></h1>
-        <p class="lede">Worktrees, builds, <code>node_modules</code> e caches crescem a cada tarefa. O AI, Leave My Mac Alone! vigia o disco e recupera esse espaço sozinho — ou com um clique.</p>
+        <p class="lede">Worktrees, builds, <code>node_modules</code> e caches crescem a cada tarefa. Escolha até onde o AI, Leave My Mac Alone! pode agir sozinho — Seguro, Profundo ou Emergência — ou execute qualquer nível manualmente.</p>
         <div class="actions">
-          <a class="button primary" href="#download" data-download-cta><span>Proteger meu SSD</span><small>grátis · v2.2.1 · Apple silicon</small></a>
+          <a class="button primary" href="#download" data-download-cta><span>Proteger meu SSD</span><small>grátis · v2.3.0 · Apple silicon</small></a>
           <a class="button secondary" href="#demo">Ver a limpeza em ação ↓</a>
         </div>
         <p class="micro">Instale uma vez · monitora a cada 5–30 segundos · sem conta · sem telemetria</p>
@@ -135,11 +135,16 @@
       </div>
     </section>
 
+    <section class="section steps" id="levels">
+      <div class="section-heading"><p class="eyebrow">Você define a permissão</p><h2>Três níveis.<br><em>Manual ou autônomo.</em></h2><p>O nível automático funciona como teto. O app nunca escala para um nível que você não autorizou.</p></div>
+      <div class="step-grid"><article><b>01</b><h3>Seguro</h3><p>Caches e builds regeneráveis, com Git e processos verificados. É o padrão automático.</p></article><article><b>02</b><h3>Profundo</h3><p>Inclui worktrees inativas e temporários reconhecíveis. Pode ser executado agora ou autorizado continuamente.</p></article><article><b>03</b><h3>Emergência</h3><p>Com autorização específica, alcança arquivos do Codex arquivados há sete dias e VMs regeneráveis do Claude sem arquivos abertos.</p></article></div>
+    </section>
+
     <section class="section safety" id="safety">
       <div class="section-heading"><p class="eyebrow">Entende projetos, não só pastas</p><h2>Autonomia com uma fronteira clara.</h2></div>
       <div class="safety-grid">
-        <article class="may"><span>PODE LIMPAR</span><h3>Resíduos regeneráveis</h3><ul><li>Caches de npm, Bun, Deno e Homebrew</li><li><code>node_modules</code> e <code>.next</code> ignorados pelo Git e acima de 100 MB</li><li>Somente projetos de desenvolvimento inativos</li></ul></article>
-        <article class="never"><span>NUNCA TOCA</span><h3>Seu trabalho real</h3><ul><li>Documentos, Mesa, Downloads ou bibliotecas de mídia</li><li>Fontes Git, credenciais ou discos externos não selecionados</li><li>Lixeira existente, dados Docker ou projetos ativos</li></ul></article>
+        <article class="may"><span>PODE LIMPAR</span><h3>Dentro da sua permissão</h3><ul><li>Caches, builds e worktrees regeneráveis</li><li>No nível Emergência: arquivos arquivados com retenção e VMs sem uso</li><li>Somente após verificação local de processos e caminhos</li></ul></article>
+        <article class="never"><span>NUNCA TOCA</span><h3>Seu trabalho real</h3><ul><li>Documentos, Mesa, Downloads ou bibliotecas de mídia</li><li>Fontes Git, credenciais, sessões atuais ou discos externos não selecionados</li><li>Lixeira existente, dados Docker ou projetos ativos</li></ul></article>
       </div>
       <p class="safety-note">Nas preferências, escolha Lixeira, exclusão somente do lote do app ou backup em HD externo com SHA-256 antes de apagar do Mac. Itens antigos da Lixeira permanecem intocados. <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/blob/main/Sources/CleanMyMac/SafeCleaner.swift">Inspecionar o código exato →</a></p>
     </section>
@@ -155,7 +160,7 @@
     </section>
 
     <section class="section install" id="download">
-      <div><p class="eyebrow">Grátis e código aberto</p><h2>Pare de interromper sua IA para caçar cache.</h2><p>Um clique ativa a proteção autônoma. O limite de 80% é tratado dentro do que for seguro; se não houver resíduos suficientes, o aplicativo alerta sem apagar arquivos pessoais.</p><a class="install-help" href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone#install">Instruções de instalação →</a></div>
+      <div><p class="eyebrow">Grátis e código aberto</p><h2>Pare de interromper sua IA para caçar cache.</h2><p>Você escolhe o maior nível de autonomia. O app persegue o teto de 80% dentro dessa permissão e alerta sem ultrapassá-la.</p><a class="install-help" href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone#install">Instruções de instalação →</a></div>
       <div class="download-gate">
         <div data-lead-form-wrap>
           <span class="gate-code">ACESSO AO DOWNLOAD / 01</span>
@@ -166,7 +171,7 @@
             <label>WhatsApp<input name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" minlength="10" maxlength="20" placeholder="(11) 99999-9999" required></label>
             <label>E-mail<input name="email" type="email" autocomplete="email" maxlength="120" placeholder="voce@exemplo.com" required></label>
             <label class="lead-honeypot" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
-            <button class="button primary" type="submit"><span>Liberar download grátis</span><small>v2.2.1 · Apple silicon</small></button>
+            <button class="button primary" type="submit"><span>Liberar download grátis</span><small>v2.3.0 · Apple silicon</small></button>
             <p class="form-status" data-form-status role="status" aria-live="polite"></p>
           </form>
         </div>
@@ -174,7 +179,7 @@
           <span class="gate-code">ACESSO LIBERADO / 02</span>
           <h3>Seu download está pronto.</h3>
           <p>Seu contato foi registrado. O arquivo ZIP contém o aplicativo para macOS.</p>
-          <a class="button primary" data-download-link href="#"><span>Baixar AI, Leave My Mac Alone!</span><small>Grátis · v2.2.1</small></a>
+          <a class="button primary" data-download-link href="#"><span>Baixar AI, Leave My Mac Alone!</span><small>Grátis · v2.3.0</small></a>
         </div>
       </div>
     </section>
