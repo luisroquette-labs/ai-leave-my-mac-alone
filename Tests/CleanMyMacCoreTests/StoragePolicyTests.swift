@@ -108,24 +108,65 @@ import Testing
         escalateAtHardLimit: true,
         usedFractionAfterArtifacts: nil
     ))
-    #expect(StoragePolicy.shouldUseDeepCleanup(
+    #expect(StoragePolicy.cleanupLevel(
         requested: nil,
-        automaticPreference: false,
+        automaticMaximum: .safe,
         isAutomatic: true,
         usedFraction: 0.80
-    ))
-    #expect(!StoragePolicy.shouldUseDeepCleanup(
+    ) == .safe)
+    #expect(StoragePolicy.cleanupLevel(
         requested: nil,
-        automaticPreference: false,
+        automaticMaximum: .safe,
         isAutomatic: true,
         usedFraction: 0.79
-    ))
-    #expect(!StoragePolicy.shouldUseDeepCleanup(
-        requested: false,
-        automaticPreference: true,
+    ) == .safe)
+    #expect(StoragePolicy.cleanupLevel(
+        requested: .safe,
+        automaticMaximum: .emergency,
         isAutomatic: true,
         usedFraction: 0.95
+    ) == .safe)
+    #expect(StoragePolicy.cleanupLevel(
+        requested: nil,
+        automaticMaximum: .emergency,
+        isAutomatic: true,
+        usedFraction: 0.95
+    ) == .emergency)
+}
+
+@Test func cleanupLevelsAreOrderedAndEmergencyTargetsRetainRecentArchives() {
+    #expect(CleanupLevel.safe < .deep)
+    #expect(CleanupLevel.deep < .emergency)
+    #expect(!CleanupLevel.safe.includesDeepCleanup)
+    #expect(CleanupLevel.deep.includesDeepCleanup)
+    #expect(CleanupLevel.emergency.includesEmergencyCleanup)
+
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    let oldArchive = "/Users/example/.codex/archives/2026/old.jsonl"
+    #expect(CleanupPolicy.isEligibleArchivedSession(
+        path: oldArchive,
+        resolvedPath: oldArchive,
+        homePath: "/Users/example",
+        modificationDate: now.addingTimeInterval(-CleanupPolicy.archivedSessionMinimumAge),
+        now: now
     ))
+    #expect(!CleanupPolicy.isEligibleArchivedSession(
+        path: oldArchive,
+        resolvedPath: oldArchive,
+        homePath: "/Users/example",
+        modificationDate: now.addingTimeInterval(-(CleanupPolicy.archivedSessionMinimumAge - 1)),
+        now: now
+    ))
+    #expect(!CleanupPolicy.isEligibleArchivedSession(
+        path: "/Users/example/.codex/sessions/live.jsonl",
+        resolvedPath: "/Users/example/.codex/sessions/live.jsonl",
+        homePath: "/Users/example",
+        modificationDate: now.addingTimeInterval(-CleanupPolicy.archivedSessionMinimumAge),
+        now: now
+    ))
+    #expect(CleanupPolicy.emergencyDirectoryPaths(homePath: "/Users/example") == [
+        "/Users/example/Library/Application Support/Claude/vm_bundles",
+    ])
 }
 
 // REGRESSÃO (21/10/2026): a varredura de worktrees levava até 8 minutos,

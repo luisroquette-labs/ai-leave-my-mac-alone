@@ -7,10 +7,12 @@ open a public issue with exploit details or personal filesystem paths.
 
 ## Safety boundary
 
-AI, Leave My Mac Alone! only removes supported package-manager caches and generated
-`node_modules`/`.next` directories that are at least 100 MB, inside a Git
-repository, ignored by Git, outside protected personal folders, and not part of
-an active development process.
+AI, Leave My Mac Alone! removes supported package-manager caches and generated
+artifacts only after path, Git and process checks. The optional Emergency level,
+when explicitly selected or authorized for automation, additionally permits
+Codex archive files older than seven days and Claude VM bundles with no open files.
 
-It never uploads data, empties Trash, scans protected personal folders, removes
-source files, or deletes Docker data.
+It never uploads data, empties the existing Trash, removes source files, current
+agent sessions, credentials, personal media, active projects, or Docker data.
+Every protected-folder exception is an exact allowlisted subtree and remains
+fail-closed when process inspection or path validation is inconclusive.

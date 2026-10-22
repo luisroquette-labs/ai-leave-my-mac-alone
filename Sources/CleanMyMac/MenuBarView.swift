@@ -5,7 +5,7 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject var monitor: StorageMonitor
     @State private var confirmingCleanup = false
-    @State private var requestedDeepCleanup = false
+    @State private var requestedCleanupLevel = CleanupLevel.safe
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -181,14 +181,20 @@ struct MenuBarView: View {
                 .toggleStyle(.switch)
                 .accessibilityHint("Executa a limpeza segura quando o armazenamento chega a 78 por cento")
 
-            VStack(alignment: .leading, spacing: 4) {
-                Toggle("Automática em modo profundo", isOn: $monitor.deepCleanupEnabled)
-                    .toggleStyle(.switch)
-                    .accessibilityHint("Inclui artefatos regeneráveis de worktrees temporárias")
-                Text("Inclui builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em /private/tmp. Acima de 80%, essa varredura segura é forçada; perfis, sessões, código e projetos ativos continuam protegidos.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            Picker("Nível automático", selection: Binding(
+                get: { monitor.automaticCleanupLevel },
+                set: { monitor.setAutomaticCleanupLevel($0) }
+            )) {
+                Text("Seguro").tag(CleanupLevel.safe)
+                Text("Profundo").tag(CleanupLevel.deep)
+                Text("Emergência").tag(CleanupLevel.emergency)
             }
+            .pickerStyle(.segmented)
+            .accessibilityHint("Define o maior nível que a limpeza automática pode usar")
+
+            Text(automaticLevelDescription)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
             Toggle(
                 "Abrir ao iniciar sessão",
@@ -228,9 +234,7 @@ struct MenuBarView: View {
 
     private var cleanupConfirmation: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(requestedDeepCleanup
-                ? "Executar Limpeza Profunda agora?"
-                : "Executar limpeza segura agora?")
+            Text(cleanupConfirmationTitle)
                 .font(.callout.weight(.semibold))
             Text(cleanupConfirmationMessage)
                 .font(.caption)
@@ -240,7 +244,7 @@ struct MenuBarView: View {
                 Spacer()
                 Button(cleanupConfirmationButton, role: .destructive) {
                     confirmingCleanup = false
-                    monitor.cleanNow(deepCleanup: requestedDeepCleanup)
+                    monitor.cleanNow(level: requestedCleanupLevel)
                 }
             }
         }
@@ -251,16 +255,34 @@ struct MenuBarView: View {
     }
 
     private var cleanupConfirmationMessage: String {
-        let deepScope = requestedDeepCleanup
-            ? "Também serão examinados builds e caches temporários reconhecíveis com mais de 24 h em /private/tmp. "
-            : ""
+        let levelScope = switch requestedCleanupLevel {
+        case .safe: ""
+        case .deep: "Também serão examinados builds, worktrees e caches temporários regeneráveis. "
+        case .emergency: "Também poderão ser removidos arquivos do Codex arquivados há 7 dias e bundles de VM do Claude sem arquivos abertos. "
+        }
         switch monitor.cleanupDestination {
         case .trash:
-            return deepScope + "Os artefatos seguros serão movidos para a Lixeira. Nada que já estava nela será apagado."
+            return levelScope + "Os artefatos seguros serão movidos para a Lixeira. Nada que já estava nela será apagado."
         case .deleteBatch:
-            return deepScope + "Somente o novo lote seguro será movido para a Lixeira e apagado. Itens antigos serão preservados."
+            return levelScope + "Somente o novo lote seguro será movido para a Lixeira e apagado. Itens antigos serão preservados."
         case .externalBackup:
-            return deepScope + "Os artefatos seguros irão para um lote recuperável, serão copiados e verificados por SHA-256; somente esse lote será apagado."
+            return levelScope + "Os artefatos seguros irão para um lote recuperável, serão copiados e verificados por SHA-256; somente esse lote será apagado."
+        }
+    }
+
+    private var cleanupConfirmationTitle: String {
+        switch requestedCleanupLevel {
+        case .safe: "Executar limpeza segura agora?"
+        case .deep: "Executar limpeza profunda agora?"
+        case .emergency: "Executar limpeza de emergência agora?"
+        }
+    }
+
+    private var automaticLevelDescription: String {
+        switch monitor.automaticCleanupLevel {
+        case .safe: "Automação limitada a caches e builds regeneráveis."
+        case .deep: "Também inclui worktrees inativas e temporários reconhecíveis."
+        case .emergency: "Com autorização persistente, inclui arquivos arquivados e VMs regeneráveis quando ainda faltar espaço."
         }
     }
 
@@ -308,14 +330,14 @@ struct MenuBarView: View {
 
             HStack(spacing: 8) {
                 Button("Limpar agora") {
-                    requestedDeepCleanup = false
+                    requestedCleanupLevel = .safe
                     confirmingCleanup = true
                 }
                 .frame(maxWidth: .infinity)
                 .disabled(monitor.isCleaning || confirmingCleanup)
 
                 Button("Limpeza Profunda") {
-                    requestedDeepCleanup = true
+                    requestedCleanupLevel = .deep
                     confirmingCleanup = true
                 }
                 .frame(maxWidth: .infinity)
@@ -323,6 +345,13 @@ struct MenuBarView: View {
                 .tint(monitor.level.tone)
                 .disabled(monitor.isCleaning || confirmingCleanup)
             }
+            Button("Limpeza de Emergência") {
+                requestedCleanupLevel = .emergency
+                confirmingCleanup = true
+            }
+            .frame(maxWidth: .infinity)
+            .tint(.red)
+            .disabled(monitor.isCleaning || confirmingCleanup)
         }
     }
 

@@ -96,14 +96,15 @@ public enum StoragePolicy {
         return usedFractionAfterArtifacts >= hardLimit
     }
 
-    public static func shouldUseDeepCleanup(
-        requested: Bool?,
-        automaticPreference: Bool,
+    public static func cleanupLevel(
+        requested: CleanupLevel?,
+        automaticMaximum: CleanupLevel,
         isAutomatic: Bool,
-        usedFraction: Double
-    ) -> Bool {
+        usedFraction _: Double
+    ) -> CleanupLevel {
         if let requested { return requested }
-        return automaticPreference || (isAutomatic && isAtOrAboveHardLimit(usedFraction))
+        guard isAutomatic else { return .safe }
+        return automaticMaximum
     }
 
     public static func bytesRequiredToGetBelowHardLimit(_ snapshot: StorageSnapshot) -> UInt64 {

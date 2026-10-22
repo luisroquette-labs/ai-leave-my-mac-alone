@@ -1,6 +1,7 @@
 import Foundation
 
 public enum CleanupPolicy {
+    public static let archivedSessionMinimumAge: TimeInterval = 7 * 86_400
     public static let artifactDirectoryNames = Set([
         "node_modules", ".next", ".build", ".turbo", ".venv", "DerivedData", "dist",
     ])
@@ -44,6 +45,9 @@ public enum CleanupPolicy {
     public static let lastResortCacheRelativePaths = [
         "Library/pnpm/store",
         ".cache/codex-runtimes",
+    ]
+    public static let emergencyDirectoryRelativePaths = [
+        "Library/Application Support/Claude/vm_bundles",
     ]
     public static let browserCacheLeafNames = ["Cache", "Code Cache", "GPUCache", "image_cache"]
     private static let excludedDirectoryNames = Set([
@@ -172,6 +176,28 @@ public enum CleanupPolicy {
         lastResortCacheRelativePaths.map {
             URL(filePath: homePath, directoryHint: .isDirectory).appending(path: $0).standardizedFileURL.path
         }
+    }
+
+    public static func emergencyDirectoryPaths(homePath: String) -> [String] {
+        emergencyDirectoryRelativePaths.map {
+            URL(filePath: homePath, directoryHint: .isDirectory).appending(path: $0).standardizedFileURL.path
+        }
+    }
+
+    public static func isEligibleArchivedSession(
+        path: String,
+        resolvedPath: String,
+        homePath: String,
+        modificationDate: Date?,
+        now: Date = Date()
+    ) -> Bool {
+        let root = URL(filePath: homePath, directoryHint: .isDirectory)
+            .appending(path: ".codex/archives", directoryHint: .isDirectory)
+            .standardizedFileURL.path
+        guard normalized(path) == normalized(resolvedPath),
+              isInside(path, root), normalized(path) != normalized(root),
+              !isInsideWarningDefault(path), let modificationDate else { return false }
+        return now.timeIntervalSince(modificationDate) >= archivedSessionMinimumAge
     }
 
     public static func shouldCleanAggressiveCachePath(
