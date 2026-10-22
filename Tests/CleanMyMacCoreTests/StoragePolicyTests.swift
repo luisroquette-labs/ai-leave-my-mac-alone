@@ -189,12 +189,15 @@ import Testing
 }
 
 @Test func cleanupReportsExactShortfallBelowHardLimit() {
-    #expect(StoragePolicy.bytesRequiredToGetBelowHardLimit(
-        StorageSnapshot(totalBytes: 1_000, availableBytes: 201)
-    ) == 0)
+    let alreadyBelow = StorageSnapshot(totalBytes: 1_000, availableBytes: 201)
+    #expect(StoragePolicy.bytesRequiredToGetBelowHardLimit(alreadyBelow) == 0)
+    #expect(!StoragePolicy.hasUnresolvedHardLimit(alreadyBelow))
     #expect(StoragePolicy.bytesRequiredToGetBelowHardLimit(
         StorageSnapshot(totalBytes: 1_000, availableBytes: 200)
     ) == 1)
+    #expect(StoragePolicy.hasUnresolvedHardLimit(
+        StorageSnapshot(totalBytes: 1_000, availableBytes: 200)
+    ))
     #expect(StoragePolicy.bytesRequiredToGetBelowHardLimit(
         StorageSnapshot(totalBytes: 1_000, availableBytes: 150)
     ) == 51)

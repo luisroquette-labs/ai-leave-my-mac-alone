@@ -371,10 +371,11 @@ final class StorageMonitor: ObservableObject {
 
     private func showCriticalStorageAlertIfNeeded() {
         guard !criticalAlertShown, let snapshot,
-              StoragePolicy.isAtOrAboveHardLimit(snapshot.usedFraction) else { return }
+              StoragePolicy.hasUnresolvedHardLimit(snapshot) else { return }
         criticalAlertShown = true
+        let shortfall = StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot)
         let missing = ByteCountFormatter.string(
-            fromByteCount: Int64(StoragePolicy.bytesRequiredToGetBelowHardLimit(snapshot)),
+            fromByteCount: Int64(shortfall),
             countStyle: .file
         )
         let alert = NSAlert()
