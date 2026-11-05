@@ -51,7 +51,7 @@ public enum CleanupPolicy {
     ]
     public static let browserCacheLeafNames = ["Cache", "Code Cache", "GPUCache", "image_cache"]
     private static let excludedDirectoryNames = Set([
-        ".git", ".codex", ".npm", ".npm-global", ".9router", ".vscode",
+        ".git", ".codex", ".npm", ".npm-global", ".vscode",
         ".Trash", "Library", "Arquivos Públicos", "Arquivos Públicos",
     ])
 
