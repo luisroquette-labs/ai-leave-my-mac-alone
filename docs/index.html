@@ -1,191 +1,234 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171411">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="Proteção autônoma de SSD para quem usa Codex, Claude Code e agentes de programação. Limpa com segurança worktrees, builds e caches regeneráveis.">
+  <meta name="description" content="Autonomous SSD protection for people building with Codex, Claude Code, and coding agents. It warns at 75% disk, cleans regenerable artifacts at 78%, and keeps working toward an 80% ceiling.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="AI, Leave My Mac Alone! — Proteção de SSD para quem cria com IA">
-  <meta property="og:description" content="Codex e Claude Code produzem código — e muitos GB de builds, worktrees e caches. O AI, Leave My Mac Alone! recupera esse espaço sozinho.">
+  <meta property="og:title" content="AI, Leave My Mac Alone! — SSD protection for people building with AI">
+  <meta property="og:description" content="Codex and Claude Code write code — and leave gigabytes of builds, worktrees, and caches. AI, Leave My Mac Alone! recovers that space on its own.">
   <meta property="og:image" content="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/img/og-card.png">
   <meta property="og:url" content="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/">
+  <link rel="alternate" hreflang="en" href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/">
+  <link rel="alternate" hreflang="pt-BR" href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/?lang=pt">
   <link rel="icon" href="img/app-icon.svg" type="image/svg+xml">
   <link rel="preload" href="img/storage-hero.webp" as="image" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="polish.css">
-  <title>AI, Leave My Mac Alone! — Proteção de SSD para quem cria com IA</title>
+  <title>AI, Leave My Mac Alone! — SSD protection for people building with AI</title>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"AI, Leave My Mac Alone!","operatingSystem":"macOS 14 ou posterior em Apple silicon","applicationCategory":"UtilitiesApplication","softwareVersion":"2.3.1","description":"Proteção autônoma de SSD para utilizadores de Codex, Claude Code e agentes de programação. Três níveis de limpeza com permissões explícitas.","downloadUrl":"https://luisroquette-labs.github.io/ai-leave-my-mac-alone/#download","license":"https://opensource.org/license/mit","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Luis Roquette","url":"https://github.com/luisroquette"}}
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"AI, Leave My Mac Alone!","operatingSystem":"macOS 14 or later on Apple silicon","applicationCategory":"UtilitiesApplication","softwareVersion":"2.3.1","description":"Autonomous SSD protection for people using Codex, Claude Code, and coding agents. Three cleanup levels with explicit permission. Warns at 75% disk, cleans at 78%, and aims for an 80% ceiling.","downloadUrl":"https://luisroquette-labs.github.io/ai-leave-my-mac-alone/#download","license":"https://opensource.org/license/mit","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Luis Roquette","url":"https://github.com/luisroquette"},"inLanguage":["en","pt-BR"]}
   </script>
 </head>
 <body>
   <div class="page-progress" aria-hidden="true"><i data-page-progress></i></div>
-  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+  <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
   <header class="nav" data-nav>
-    <a class="brand" href="#top"><img src="img/app-icon.svg" alt="" width="36" height="36"><span>AI, Leave My Mac Alone!</span></a>
-    <nav aria-label="Navegação principal"><a href="#ai-workflow">O problema da IA</a><a href="#proof">Como funciona</a><a href="#levels">Níveis</a><a href="#safety">Segurança</a><a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone">Código</a><a class="nav-cta" href="#download" data-download-cta>Baixar grátis</a></nav>
+    <a class="brand" href="#top"><img src="img/app-icon.svg" alt="" width="36" height="36"><span class="brand-full">AI, Leave My Mac Alone!</span><span class="brand-short">Leave My Mac Alone</span></a>
+    <nav aria-label="Primary">
+      <a href="#ai-workflow" data-i18n="nav.problem">The AI problem</a>
+      <a href="#proof" data-i18n="nav.how">How it works</a>
+      <a href="#levels" data-i18n="nav.levels">Levels</a>
+      <a href="#safety" data-i18n="nav.safety">Safety</a>
+      <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone" data-i18n="nav.code">Code</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-set-lang="pt" aria-pressed="false">PT</button>
+      </div>
+      <a class="nav-cta" href="#download" data-download-cta data-i18n="nav.download">Download free</a>
+    </nav>
   </header>
 
   <main id="main">
     <section class="hero" id="top">
       <img class="hero-art" src="img/storage-hero.webp" alt="" width="1672" height="941" fetchpriority="high" decoding="async">
-      <span class="hero-coordinate coordinate-top" aria-hidden="true">SSD / DADOS</span>
-      <span class="hero-coordinate coordinate-side" aria-hidden="true">MONITOR LOCAL · PRESSÃO EM 5 S</span>
+      <span class="hero-coordinate coordinate-top" aria-hidden="true">SSD / DATA</span>
+      <span class="hero-coordinate coordinate-side" aria-hidden="true">LOCAL MONITOR · 5 S UNDER PRESSURE</span>
       <div class="hero-copy reveal">
-        <p class="eyebrow"><i></i> Feito para Codex, Claude Code e agentes de programação</p>
-        <h1>Sua IA escreve código.<br><em>E lota o SSD junto.</em></h1>
-        <p class="lede">Worktrees, builds, <code>node_modules</code> e caches crescem a cada tarefa. Escolha até onde o AI, Leave My Mac Alone! pode agir sozinho — Seguro, Profundo ou Emergência — ou execute qualquer nível manualmente.</p>
+        <p class="eyebrow"><i></i> <span data-i18n="hero.eyebrow">Built for Codex, Claude Code, and coding agents</span></p>
+        <h1 data-i18n-html="hero.title">Your AI writes the code.<br><em>And fills the SSD with it.</em></h1>
+        <p class="lede" data-i18n-html="hero.lede">Worktrees, builds, <code>node_modules</code>, and caches grow with every task. Choose how far AI, Leave My Mac Alone! may act on its own — Safe, Deep, or Emergency — or run any level yourself.</p>
         <div class="actions">
-          <a class="button primary" href="#download" data-download-cta><span>Proteger meu SSD</span><small>grátis · v2.3.1 · Apple silicon</small></a>
-          <a class="button secondary" href="#demo">Ver a limpeza em ação ↓</a>
+          <a class="button primary" href="#download" data-download-cta><span data-i18n="hero.cta">Protect my SSD</span><small>free · v2.3.1 · Apple silicon</small></a>
+          <a class="button secondary" href="#demo" data-i18n="hero.secondary">See cleanup in action ↓</a>
         </div>
-        <p class="micro">Instale uma vez · monitora a cada 5–30 segundos · sem conta · sem telemetria</p>
+        <p class="micro" data-i18n="hero.micro">Install once · checks every 5–30 seconds · no account · no telemetry</p>
       </div>
       <figure class="app-shot reveal">
         <div class="menu-chip" aria-hidden="true"><img src="img/app-icon.svg" alt="" width="24" height="24"><strong>91%</strong><span>SSD</span><i></i></div>
-        <span class="shot-label">SSD SOB PRESSÃO · 91%</span>
+        <span class="shot-label">EXAMPLE · SSD AT 91%</span>
         <div class="app-visual">
-          <img src="img/app-popover-current.png" alt="AI, Leave My Mac Alone! mostrando 96% do armazenamento usado, alerta em 75% e limpeza em 78%" width="400" height="412" fetchpriority="high" decoding="async">
+          <div class="menu-panel">
+            <header>
+              <img src="img/app-icon.svg" alt="" width="38" height="38">
+              <div><strong>AI, Leave My Mac Alone!</strong><span data-i18n="mock.status">Cleanup needed</span></div>
+            </header>
+            <div class="menu-readout"><div><b>91%</b> <small data-i18n="mock.used">used</small></div><span>44.73 GB <span data-i18n="mock.free">free</span></span></div>
+            <div class="menu-track" aria-hidden="true"><i></i></div>
+            <div class="menu-marks"><span data-i18n="mock.alert">Alert at 75%</span><span data-i18n="mock.clean">Clean at 78%</span><span data-i18n="mock.limit">Ceiling at 80%</span></div>
+            <div class="menu-toggles"><span><b data-i18n="mock.auto">Automatic cleanup</b><i></i></span><span><b data-i18n="mock.login">Open at login</b><i></i></span></div>
+            <p class="menu-footnote" data-i18n="mock.checked">Disk checked: 91% in use.</p>
+            <div class="menu-actions"><span data-i18n="mock.check">Check now</span><span class="primary" data-i18n="mock.cleanNow">Clean now</span></div>
+          </div>
           <div class="cleaning-animation" aria-hidden="true">
             <span class="cleaning-beam"></span>
             <div class="storage-relief">
               <div class="relief-head">
                 <strong class="relief-percent"><span>91%</span><span>72%</span></strong>
-                <small>usado</small>
-                <span class="relief-free"><span>44,73 GB livres</span><span>79,52 GB livres</span></span>
+                <small data-i18n="mock.used">used</small>
+                <span class="relief-free"><span>44.73 GB free</span><span>79.52 GB free</span></span>
               </div>
               <div class="relief-track"><i></i></div>
-              <div class="relief-signals"><span>△ Alerta aos 75%</span><span>✦ Pressão aliviada</span></div>
+              <div class="relief-signals"><span data-i18n="mock.alert">Alert at 75%</span><span data-i18n="anim.relieved">Pressure eased</span></div>
             </div>
             <span class="cleaning-target target-cache"></span>
             <span class="cleaning-target target-build"></span>
             <div class="cleaning-debris"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-            <div class="cleaning-complete">✓ <span>LIMPEZA SEGURA CONCLUÍDA</span></div>
+            <div class="cleaning-complete">✓ <span data-i18n="anim.done">SAFE CLEANUP FINISHED</span></div>
             <div class="cleaning-status">
               <i></i>
-              <span class="cleaning-copy"><b>LIMPEZA DE ARTEFATOS IA</b><small>Apenas arquivos regeneráveis</small></span>
-              <strong class="cleaning-phase"><span>MAPEAR</span><span>LIMPAR</span><span>PRONTO</span></strong>
+              <span class="cleaning-copy"><b data-i18n="anim.title">AI ARTIFACT CLEANUP</b><small data-i18n="anim.scope">Regenerable files only</small></span>
+              <strong class="cleaning-phase"><span data-i18n="anim.map">MAP</span><span data-i18n="anim.clean">CLEAN</span><span data-i18n="anim.ready">READY</span></strong>
             </div>
           </div>
         </div>
-        <figcaption>Interface real do aplicativo · limpeza autônoma local</figcaption>
+        <figcaption data-i18n="hero.caption">English interface of the menu-bar monitor · local autonomous cleanup</figcaption>
       </figure>
     </section>
 
-    <section class="metrics" aria-label="Limites do produto">
-      <div data-code="01 / ALERTA"><strong>75%</strong><span>aviso antes da crise</span></div>
-      <div data-code="02 / AUTÔNOMO"><strong>78%</strong><span>limpeza sem interromper</span></div>
-      <div data-code="03 / LIMITE"><strong>80%</strong><span>proteção do SSD</span></div>
-      <div data-code="04 / PRIVACIDADE"><strong>0</strong><span>dados enviados</span></div>
+    <section class="metrics" aria-label="Product limits">
+      <div data-code="01 / ALERT"><strong>75%</strong><span data-i18n="metric.alert">warning before the crunch</span></div>
+      <div data-code="02 / AUTO"><strong>78%</strong><span data-i18n="metric.clean">cleanup without interrupting you</span></div>
+      <div data-code="03 / CEILING"><strong>80%</strong><span data-i18n="metric.limit">SSD ceiling</span></div>
+      <div data-code="04 / PRIVACY"><strong>0</strong><span data-i18n="metric.privacy">data sent</span></div>
     </section>
 
     <section class="section ai-problem" id="ai-workflow">
       <div class="section-heading">
-        <p class="eyebrow">O custo invisível do código com IA</p>
-        <h2>Agentes trabalham em paralelo.<br><em>Seu SSD paga a conta.</em></h2>
-        <p>Foi esse problema real que criou o AI, Leave My Mac Alone!: Codex e Claude Code aceleram o trabalho, mas cada execução pode deixar worktrees, dependências, builds e caches ocupando dezenas de gigabytes.</p>
+        <p class="eyebrow" data-i18n="problem.eyebrow">The invisible cost of coding with AI</p>
+        <h2 data-i18n-html="problem.title">Agents work in parallel.<br><em>Your SSD pays the bill.</em></h2>
+        <p data-i18n="problem.copy">This product exists because of that real problem: Codex and Claude Code speed the work up, and each run can leave worktrees, dependencies, builds, and caches occupying tens of gigabytes.</p>
       </div>
-      <div class="agent-ledger" aria-label="Resíduos comuns de agentes de programação">
-        <article><span>01 / AGENTES</span><h3>Mais tarefas, mais cópias</h3><p>Sessões paralelas multiplicam branches, worktrees e ambientes temporários sem avisar quanto espaço consumiram.</p><div class="agent-trace"><b>CODEX</b><b>CLAUDE CODE</b><b>WORKTREES</b></div></article>
-        <article><span>02 / ARTEFATOS</span><h3>O código termina. O peso fica.</h3><p><code>node_modules</code>, <code>.next</code> e caches de npm, Bun, Deno e Homebrew continuam no SSD depois da entrega.</p><div class="agent-trace"><b>NODE_MODULES</b><b>.NEXT</b><b>CACHES</b></div></article>
-        <article><span>03 / CONTEXTO</span><h3>Limpeza que entende projetos</h3><p>O sistema verifica Git, processos ativos e uma lista segura antes de remover somente o que pode ser reconstruído.</p><div class="agent-trace safe"><b>GIT SAFE</b><b>LOCAL</b><b>REGENERÁVEL</b></div></article>
+      <div class="agent-ledger" aria-label="Common residue from coding agents">
+        <article><span>01 / AGENTS</span><h3 data-i18n="problem.card1.title">More tasks, more copies</h3><p data-i18n="problem.card1.copy">Parallel sessions multiply branches, worktrees, and temporary environments without saying how much space they used.</p><div class="agent-trace"><b>CODEX</b><b>CLAUDE CODE</b><b>WORKTREES</b></div></article>
+        <article><span>02 / ARTIFACTS</span><h3 data-i18n="problem.card2.title">The code is done. The weight stays.</h3><p data-i18n-html="problem.card2.copy"><code>node_modules</code>, <code>.next</code>, and npm, Bun, Deno, and Homebrew caches stay on the SSD after the task is delivered.</p><div class="agent-trace"><b>NODE_MODULES</b><b>.NEXT</b><b>CACHES</b></div></article>
+        <article><span>03 / CONTEXT</span><h3 data-i18n="problem.card3.title">Cleanup that understands projects</h3><p data-i18n="problem.card3.copy">The app checks Git, running processes, and a safe list before it removes only what can be rebuilt.</p><div class="agent-trace safe"><b>GIT SAFE</b><b>LOCAL</b><b>REBUILDABLE</b></div></article>
       </div>
-      <p class="generic-contrast"><strong>Categoria diferente:</strong> CCleaner e utilitários genéricos fazem manutenção ampla. O AI, Leave My Mac Alone! foi desenhado para o rastro técnico de agentes de código e protege fontes, projetos ativos e arquivos pessoais.</p>
+      <p class="generic-contrast" data-i18n-html="problem.contrast"><strong>A different category:</strong> CCleaner and generic utilities do broad maintenance. AI, Leave My Mac Alone! is built for the technical residue of coding agents, and it protects source, active projects, and personal files.</p>
     </section>
 
     <section class="section pressure" id="proof" data-pressure>
       <div class="section-heading">
-        <p class="eyebrow">Veja o modo autônomo decidir</p>
-        <h2>O agente trabalha.<br><em>O espaço volta sozinho.</em></h2>
-        <p>Leve a barra até 78% para simular a limpeza. Esta demonstração reproduz a política do aplicativo sem alterar o seu Mac.</p>
+        <p class="eyebrow" data-i18n="proof.eyebrow">Watch the autonomous mode decide</p>
+        <h2 data-i18n-html="proof.title">The agent keeps working.<br><em>The space comes back.</em></h2>
+        <p data-i18n="proof.copy">Drag the bar to 78% to simulate cleanup. This demo follows the app policy and does not change your Mac. Disk triggers are 75%, 78%, and 80%. There is no 90% or 95% disk trigger. Memory relief is separate: it runs when free RAM is under 300 MB and swap is at 90% or higher.</p>
       </div>
       <div class="storage-console" data-storage-console>
         <header class="console-bar">
           <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-          <strong><img src="img/app-icon.svg" alt="" width="24" height="24">AI, Leave My Mac Alone! <span>— Controle para IA</span></strong>
-          <div class="console-status"><span><i></i>100% local</span><button type="button" data-auto-clean aria-pressed="true">Limpeza autônoma: <b data-auto-label>Ativa</b></button></div>
+          <strong><img src="img/app-icon.svg" alt="" width="24" height="24">AI, Leave My Mac Alone! <span data-i18n="console.subtitle">— control for AI</span></strong>
+          <div class="console-status"><span><i></i><span data-i18n="console.local">100% local</span></span><button type="button" data-auto-clean aria-pressed="true"><span data-i18n="console.auto">Autonomous cleanup:</span> <b data-auto-label>On</b></button></div>
         </header>
         <div class="console-grid">
           <aside class="pressure-readout">
-            <div class="gauge-shell"><span class="gauge-label gauge-label-top">ALERTA 75</span><span class="gauge-label gauge-label-bottom">LIMPAR 78</span><div class="gauge"><div class="gauge-value"><strong data-percent>72%</strong><span>USADO</span></div></div></div>
-            <p data-gauge-status>Pressão do SSD normal.</p>
+            <div class="gauge-shell"><span class="gauge-label gauge-label-top" data-i18n="gauge.alert">ALERT 75</span><span class="gauge-label gauge-label-bottom" data-i18n="gauge.clean">CLEAN 78</span><div class="gauge"><div class="gauge-value"><strong data-percent>72%</strong><span data-i18n="gauge.used">USED</span></div></div></div>
+            <p data-gauge-status>SSD pressure is normal.</p>
           </aside>
           <div class="pressure-controls">
-            <label for="storage">Uso simulado do SSD</label>
+            <label for="storage" data-i18n="console.slider">Simulated SSD use</label>
             <div class="threshold-control"><span class="threshold-track" aria-hidden="true"><i></i><i></i><i></i></span><input id="storage" type="range" min="70" max="99" step="0.1" value="72" aria-describedby="decision-copy"></div>
-            <div class="ticks"><span>70%<b>NORMAL</b></span><span>75%<b>ALERTA</b></span><span>78%<b>LIMPAR</b></span><span>80% LIMITE</span></div>
+            <div class="ticks"><span>70%<b data-i18n="tick.normal">NORMAL</b></span><span>75%<b data-i18n="tick.alert">ALERT</b></span><span>78%<b data-i18n="tick.clean">CLEAN</b></span><span data-i18n="tick.limit">80% LIMIT</span></div>
             <div class="decision-flow">
-              <div class="decision" aria-live="polite"><span data-state>NORMAL</span><h3 data-title>Só observando.</h3><p id="decision-copy" data-copy>O SSD está abaixo do limite de alerta. Nenhuma ação é necessária.</p></div>
+              <div class="decision" aria-live="polite"><span data-state>NORMAL</span><h3 data-title>Just watching.</h3><p id="decision-copy" data-copy>The SSD is below the warning line. Nothing needs to happen.</p></div>
               <span class="flow-arrow" aria-hidden="true">→</span>
-              <div class="target-state"><span>ALVO SEGURO</span><strong>72%</strong><small>espaço recuperado</small></div>
+              <div class="target-state"><span data-i18n="console.target">SAFE TARGET</span><strong>72%</strong><small data-i18n="console.recovered">space recovered</small></div>
             </div>
           </div>
         </div>
-        <ol class="cleanup-timeline" aria-label="Progresso da limpeza">
-          <li><i>!</i><strong>Detectado</strong><span>78% alcançado</span></li>
-          <li><i>⌁</i><strong>Mapeando</strong><span>Lista segura</span></li>
-          <li><i>↘</i><strong>Limpando</strong><span>Resíduos de IA</span></li>
-          <li><i>✓</i><strong>Aliviado</strong><span>Pressão reduzida</span></li>
+        <ol class="cleanup-timeline" aria-label="Cleanup progress">
+          <li><i>!</i><strong data-i18n="time.detected">Detected</strong><span data-i18n="time.detectedDetail">78% reached</span></li>
+          <li><i>⌁</i><strong data-i18n="time.mapping">Mapping</strong><span data-i18n="time.mappingDetail">Safe list</span></li>
+          <li><i>↘</i><strong data-i18n="time.cleaning">Cleaning</strong><span data-i18n="time.cleaningDetail">AI residue</span></li>
+          <li><i>✓</i><strong data-i18n="time.relieved">Relieved</strong><span data-i18n="time.relievedDetail">Pressure down</span></li>
         </ol>
-        <footer class="audit-strip"><strong>Escopo seguro</strong><span>Caches de ferramentas</span><span><code>node_modules</code> ignorados</span><span>Builds <code>.next</code></span><span>Fontes Git protegidas</span></footer>
+        <footer class="audit-strip"><strong data-i18n="audit.scope">Safe scope</strong><span data-i18n="audit.caches">Tool caches</span><span data-i18n-html="audit.modules">Ignored <code>node_modules</code></span><span data-i18n-html="audit.next">Builds <code>.next</code></span><span data-i18n="audit.git">Git source protected</span></footer>
       </div>
     </section>
 
     <section class="section steps" id="levels">
-      <div class="section-heading"><p class="eyebrow">Você define a permissão</p><h2>Três níveis.<br><em>Manual ou autônomo.</em></h2><p>O nível automático funciona como teto. O app nunca escala para um nível que você não autorizou.</p></div>
-      <div class="step-grid"><article><b>01</b><h3>Seguro</h3><p>Caches e builds regeneráveis, com Git e processos verificados. É o padrão automático.</p></article><article><b>02</b><h3>Profundo</h3><p>Inclui worktrees inativas e temporários reconhecíveis. Pode ser executado agora ou autorizado continuamente.</p></article><article><b>03</b><h3>Emergência</h3><p>Com autorização específica, alcança arquivos do Codex arquivados há sete dias e VMs regeneráveis do Claude sem arquivos abertos.</p></article></div>
+      <div class="section-heading"><p class="eyebrow" data-i18n="levels.eyebrow">You set the permission</p><h2 data-i18n-html="levels.title">Three levels.<br><em>Manual or autonomous.</em></h2><p data-i18n="levels.copy">The automatic level is a ceiling. The app never escalates to a level you did not authorize.</p></div>
+      <div class="step-grid">
+        <article><b>01</b><h3 data-i18n="levels.safe.title">Safe</h3><p data-i18n="levels.safe.copy">Regenerable caches and builds, with Git and processes checked. This is the automatic default.</p></article>
+        <article><b>02</b><h3 data-i18n="levels.deep.title">Deep</h3><p data-i18n="levels.deep.copy">Adds inactive worktrees and recognized temporary files. Run it now, or authorize it continuously.</p></article>
+        <article><b>03</b><h3 data-i18n="levels.emergency.title">Emergency</h3><p data-i18n="levels.emergency.copy">With a specific authorization, it can reach Codex files archived for seven days and regenerable Claude VMs with no open files.</p></article>
+      </div>
     </section>
 
     <section class="section safety" id="safety">
-      <div class="section-heading"><p class="eyebrow">Entende projetos, não só pastas</p><h2>Autonomia com uma fronteira clara.</h2></div>
+      <div class="section-heading"><p class="eyebrow" data-i18n="safety.eyebrow">It understands projects, not just folders</p><h2 data-i18n="safety.title">Autonomy with a clear boundary.</h2></div>
       <div class="safety-grid">
-        <article class="may"><span>PODE LIMPAR</span><h3>Dentro da sua permissão</h3><ul><li>Caches, builds e worktrees regeneráveis</li><li>No nível Emergência: arquivos arquivados com retenção e VMs sem uso</li><li>Somente após verificação local de processos e caminhos</li></ul></article>
-        <article class="never"><span>NUNCA TOCA</span><h3>Seu trabalho real</h3><ul><li>Documentos, Mesa, Downloads ou bibliotecas de mídia</li><li>Fontes Git, credenciais, sessões atuais ou discos externos não selecionados</li><li>Lixeira existente, dados Docker ou projetos ativos</li></ul></article>
+        <article class="may"><span data-i18n="safety.may">MAY CLEAN</span><h3 data-i18n="safety.mayTitle">Inside your permission</h3><ul><li data-i18n="safety.may1">Regenerable caches, builds, and worktrees</li><li data-i18n="safety.may2">At Emergency: archived files with retention, and unused VMs</li><li data-i18n="safety.may3">Only after a local check of processes and paths</li></ul></article>
+        <article class="never"><span data-i18n="safety.never">NEVER TOUCHES</span><h3 data-i18n="safety.neverTitle">Your real work</h3><ul><li data-i18n="safety.never1">Documents, Desktop, Downloads, or media libraries</li><li data-i18n="safety.never2">Git source, credentials, current sessions, or unselected external disks</li><li data-i18n="safety.never3">Existing Trash, Docker data, or active projects</li></ul></article>
       </div>
-      <p class="safety-note">Nas preferências, escolha Lixeira, exclusão somente do lote do app ou backup em HD externo com SHA-256 antes de apagar do Mac. Itens antigos da Lixeira permanecem intocados. <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/blob/main/Sources/CleanMyMac/SafeCleaner.swift">Inspecionar o código exato →</a></p>
+      <p class="safety-note" data-i18n-html="safety.note">In Settings, choose Trash, deletion of only this app's batch, or an external-drive backup with SHA-256 before anything is removed from the Mac. Older Trash items stay untouched. <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/blob/main/Sources/CleanMyMac/SafeCleaner.swift">Read the exact code →</a></p>
     </section>
 
     <section class="section steps">
-      <div class="section-heading"><p class="eyebrow">Instale uma vez</p><h2>Deixe seus agentes criarem.<br><em>O espaço se administra sozinho.</em></h2></div>
-        <div class="step-grid"><article><b>01</b><h3>Ative em um clique</h3><p>O percentual fica na barra do macOS e o monitor abre automaticamente com a sessão.</p></article><article><b>02</b><h3>Use sua IA normalmente</h3><p>Codex, Claude Code e seus builds continuam trabalhando enquanto o disco é monitorado.</p></article><article><b>03</b><h3>Recupere espaço</h3><p>Aos 78%, a lista segura entra em ação. Acima de 80%, novas rodadas ocorrem a cada 5 minutos quando há progresso; sem progresso, o backoff aumenta o intervalo até 30 minutos.</p></article></div>
+      <div class="section-heading"><p class="eyebrow" data-i18n="steps.eyebrow">Install once</p><h2 data-i18n-html="steps.title">Let your agents build.<br><em>The space looks after itself.</em></h2></div>
+      <div class="step-grid">
+        <article><b>01</b><h3 data-i18n="steps.one.title">Turn it on in one click</h3><p data-i18n="steps.one.copy">The percent sits in the macOS menu bar, and the monitor opens with your session.</p></article>
+        <article><b>02</b><h3 data-i18n="steps.two.title">Use your AI as usual</h3><p data-i18n="steps.two.copy">Codex, Claude Code, and your builds keep working while the disk is watched.</p></article>
+        <article><b>03</b><h3 data-i18n="steps.three.title">Get the space back</h3><p data-i18n="steps.three.copy">At 78%, the safe list goes to work. Above 80%, another round runs after 5 minutes when the last one freed space; without progress, backoff stretches the wait up to 30 minutes.</p></article>
+      </div>
     </section>
 
     <section class="section demo" id="demo">
-      <div class="section-heading"><p class="eyebrow">Aplicativo real</p><h2>Veja o SSD respirar em 12 segundos.</h2></div>
-      <video controls playsinline preload="metadata" poster="img/app-popover-current.png"><source src="video/clean-my-mac-demo.mp4" type="video/mp4">Seu navegador não reproduz este vídeo.</video>
+      <div class="section-heading">
+        <p class="eyebrow" data-i18n="demo.eyebrow">Real app</p>
+        <h2 data-i18n="demo.title">The recorded demo is being recaptured.</h2>
+        <p data-i18n="demo.copy">The previous 12-second video showed an old name and disk marks at 90% and 95%. Those are not the app's disk triggers. Use the live policy demo above until a new English recording is published.</p>
+      </div>
     </section>
 
     <section class="section install" id="download">
-      <div><p class="eyebrow">Grátis e código aberto</p><h2>Pare de interromper sua IA para caçar cache.</h2><p>Você escolhe o maior nível de autonomia. O app persegue o teto de 80% dentro dessa permissão e alerta sem ultrapassá-la.</p><a class="install-help" href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone#install">Instruções de instalação →</a></div>
+      <div>
+        <p class="eyebrow" data-i18n="download.eyebrow">Free and open source</p>
+        <h2 data-i18n="download.title">Stop interrupting your AI to hunt caches.</h2>
+        <p data-i18n="download.copy">You choose the highest level of autonomy. The app chases the 80% ceiling inside that permission and tells you when protected data blocks the rest.</p>
+        <a class="install-help" href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone#install" data-i18n="download.help">Install instructions →</a>
+      </div>
       <div class="download-gate">
         <div data-lead-form-wrap>
-          <span class="gate-code">ACESSO AO DOWNLOAD / 01</span>
-          <h3>Para onde enviamos as novidades?</h3>
-          <p id="lead-privacy">Preencha os dados para liberar o download gratuito. A CF Gauss registra o contato no pipeline comercial e poderá falar com você sobre o AI, Leave My Mac Alone!.</p>
+          <span class="gate-code">DOWNLOAD ACCESS / 01</span>
+          <h3 data-i18n="form.title">Where should updates go?</h3>
+          <p id="lead-privacy" data-i18n="form.privacy">Fill this in to unlock the free download. CF Gauss stores the contact in its sales pipeline and may write to you about AI, Leave My Mac Alone!.</p>
           <form data-lead-form aria-describedby="lead-privacy">
-            <label>Nome<input name="name" autocomplete="name" minlength="2" maxlength="80" required></label>
-            <label>WhatsApp<input name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" minlength="10" maxlength="20" placeholder="(11) 99999-9999" required></label>
-            <label>E-mail<input name="email" type="email" autocomplete="email" maxlength="120" placeholder="voce@exemplo.com" required></label>
+            <label><span data-i18n="form.name">Name</span><input name="name" autocomplete="name" minlength="2" maxlength="80" required></label>
+            <label><span data-i18n="form.whatsapp">WhatsApp</span><input name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" minlength="10" maxlength="20" placeholder="+1 415 555 0134" required></label>
+            <label><span data-i18n="form.email">Email</span><input name="email" type="email" autocomplete="email" maxlength="120" placeholder="you@example.com" required></label>
             <label class="lead-honeypot" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
-            <button class="button primary" type="submit"><span>Liberar download grátis</span><small>v2.3.1 · Apple silicon</small></button>
+            <button class="button primary" type="submit"><span data-i18n="form.submit">Unlock the free download</span><small>v2.3.1 · Apple silicon</small></button>
             <p class="form-status" data-form-status role="status" aria-live="polite"></p>
           </form>
         </div>
         <div class="download-ready" data-download-ready hidden tabindex="-1">
-          <span class="gate-code">ACESSO LIBERADO / 02</span>
-          <h3>Seu download está pronto.</h3>
-          <p>Seu contato foi registrado. O arquivo ZIP contém o aplicativo para macOS.</p>
-          <a class="button primary" data-download-link href="#"><span>Baixar AI, Leave My Mac Alone!</span><small>Grátis · v2.3.1</small></a>
+          <span class="gate-code">ACCESS UNLOCKED / 02</span>
+          <h3 data-i18n="ready.title">Your download is ready.</h3>
+          <p data-i18n="ready.copy">Your contact was saved. The ZIP contains the macOS app.</p>
+          <a class="button primary" data-download-link href="#"><span data-i18n="ready.button">Download AI, Leave My Mac Alone!</span><small>Free · v2.3.1</small></a>
         </div>
       </div>
     </section>
   </main>
 
-  <footer><div><img src="img/app-icon.svg" alt="" width="32" height="32"><strong>AI, Leave My Mac Alone!</strong></div><p>Proteção de SSD feita para quem constrói com IA. Software independente e aberto por <a href="https://github.com/luisroquette">Luis Roquette</a>, sem afiliação ou endosso da MacPaw.</p></footer>
+  <footer>
+    <div><img src="img/app-icon.svg" alt="" width="32" height="32"><strong>AI, Leave My Mac Alone!</strong></div>
+    <p data-i18n-html="footer">SSD protection for people building with AI. Independent open-source software by <a href="https://github.com/luisroquette">Luis Roquette</a>, with no affiliation or endorsement from MacPaw.</p>
+  </footer>
   <script type="module" src="script.js"></script>
 </body>
 </html>

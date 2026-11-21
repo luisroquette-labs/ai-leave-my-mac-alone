@@ -55,20 +55,27 @@ def run_e2e(url):
         )
 
         assert page.locator("[data-storage-console]").is_visible()
+        page.locator("[data-set-lang='pt']").click()
+        assert "Sua IA" in page.locator("h1").inner_text()
+        assert "agentes de programação" in page.locator("body").inner_text().lower()
+        page.locator("[data-set-lang='en']").click()
+        assert "Your AI" in page.locator("h1").inner_text()
         page_text = page.locator("body").inner_text()
+        assert "Clean My Mac" not in page_text
+        assert "CleanMyMac" not in page_text
         assert "Codex" in page_text
         assert "Claude Code" in page_text
         assert "CCleaner" in page_text
-        assert "agentes de programação" in page_text.lower()
-        assert "um clique" in page_text.lower()
+        assert "coding agents" in page_text.lower()
+        assert "one click" in page_text.lower()
         assert "backoff" in page_text.lower()
-        assert "discos externos não selecionados" in page_text.lower()
+        assert "unselected external disks" in page_text.lower()
         assert page.locator("[data-percent]").inner_text() == "72%"
         assert page.locator("[data-state]").inner_text() == "NORMAL"
         set_storage(page, 74.9)
         assert page.locator("[data-state]").inner_text() == "NORMAL"
         set_storage(page, 75)
-        assert page.locator("[data-state]").inner_text() == "ALERTA 75%"
+        assert page.locator("[data-state]").inner_text() == "ALERT 75%"
 
         auto_clean = page.locator("[data-auto-clean]")
         auto_clean.focus()
@@ -77,10 +84,10 @@ def run_e2e(url):
         set_storage(page, 81)
         page.wait_for_timeout(1200)
         assert float(page.locator("#storage").input_value()) == 81
-        assert page.locator("[data-state]").inner_text() == "LIMPEZA 78%"
+        assert page.locator("[data-state]").inner_text() == "LIMIT 80%"
 
         page.keyboard.press("Enter")
-        expect(page.locator("[data-state]")).to_have_text("ALIVIADO", timeout=10_000)
+        expect(page.locator("[data-state]")).to_have_text("RELIEVED", timeout=10_000)
         assert float(page.locator("#storage").input_value()) == 72
         assert page.locator(".cleanup-timeline li.is-done").count() == 4
         assert page.locator('[data-download-cta][href="#download"]').count() == 2
@@ -130,7 +137,7 @@ def run_e2e(url):
         page.locator('[data-lead-form] input[name="email"]').fill("ana@example.com")
         page.locator('[data-lead-form] button[type="submit"]').click()
         expect(page.locator("[data-form-status]")).to_have_text(
-            "O servidor demorou para responder. Tente novamente.",
+            "The server took too long to respond. Try again.",
             timeout=15_000,
         )
         expect(page.locator('[data-lead-form] button[type="submit"]')).to_be_enabled()
@@ -144,7 +151,7 @@ def run_e2e(url):
             reduced_motion="reduce",
         )
         set_storage(page, 81)
-        expect(page.locator("[data-state]")).to_have_text("ALIVIADO", timeout=3_000)
+        expect(page.locator("[data-state]")).to_have_text("RELIEVED", timeout=3_000)
         assert float(page.locator("#storage").input_value()) == 72
         reduced.close()
 

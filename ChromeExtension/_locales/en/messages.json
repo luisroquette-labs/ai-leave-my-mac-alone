@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "AI, Leave My Mac Alone! — Chrome"
+  },
+  "extDescription": {
+    "message": "Discards up to 8 inactive tabs every 30 seconds when less than 2 GB of RAM is free. Tabs stay listed and reload when selected."
+  }
+}

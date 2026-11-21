@@ -4,11 +4,15 @@ set -euo pipefail
 project_dir="${0:A:h:h}"
 cd "$project_dir"
 
-required=(README.md LICENSE SECURITY.md VERSION docs/index.html docs/styles.css docs/polish.css docs/script.js docs/img/app-popover-current.png docs/img/og-card.png docs/video/clean-my-mac-demo.mp4)
+required=(README.md LICENSE SECURITY.md VERSION docs/index.html docs/styles.css docs/polish.css docs/script.js docs/img/og-card.png docs/img/app-icon.png docs/SIGNING.md docs/RELEASE_NOTES_NEXT.md Scripts/report-freed.sh)
 for path in "${required[@]}"; do
     [[ -f "$path" ]] || { print -u2 "Missing public file: $path"; exit 1; }
 done
-[[ -s docs/video/clean-my-mac-demo.mp4 ]] || { print -u2 "Demo video is empty"; exit 1; }
+[[ -s docs/img/og-card.png ]] || { print -u2 "Social card is empty"; exit 1; }
+if /usr/bin/grep -R -n -E 'Clean My Mac|clean-my-mac-demo\.mp4' docs/index.html docs/script.js README.md; then
+    print -u2 "Public pages still name the previous product or the old demo"
+    exit 1
+fi
 
 if command -v rg >/dev/null 2>&1; then
     if rg -n -g '!check-public-release.sh' '/Users/luisroquette/' Sources Scripts Resources Tests Package.swift; then

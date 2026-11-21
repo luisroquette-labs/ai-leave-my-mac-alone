@@ -8,7 +8,10 @@ import UserNotifications
 final class StorageMonitor: ObservableObject {
     @Published private(set) var snapshot: StorageSnapshot?
     @Published private(set) var lastUpdatedAt: Date?
-    @Published private(set) var lastAction = "Iniciando monitoramento…"
+    @Published private(set) var lastAction = InterfaceCopy.text(
+        "Starting monitoring…",
+        portuguese: "Iniciando monitoramento…"
+    )
     @Published private(set) var isSampling = false
     @Published private(set) var isCleaning = false
     @Published private(set) var unresolvedShortfallBytes: UInt64 = 0
@@ -30,7 +33,10 @@ final class StorageMonitor: ObservableObject {
 
     @Published private(set) var memorySnapshot: MemorySnapshot?
     @Published private(set) var isRelievingMemory = false
-    @Published private(set) var lastMemoryAction = "Aguardando primeira leitura de memória…"
+    @Published private(set) var lastMemoryAction = InterfaceCopy.text(
+        "Waiting for the first memory reading…",
+        portuguese: "Aguardando primeira leitura de memória…"
+    )
     @Published var automaticMemoryReliefEnabled: Bool {
         didSet { defaults.set(automaticMemoryReliefEnabled, forKey: Keys.automaticMemoryRelief) }
     }
@@ -135,18 +141,27 @@ final class StorageMonitor: ObservableObject {
             snapshot = sample
             lastUpdatedAt = Date()
             if isFirstSample || reportResult {
-                lastAction = "Disco verificado: \(sample.usedPercent)% em uso."
+                lastAction = InterfaceCopy.text(
+                    "Disk checked: \(sample.usedPercent)% in use.",
+                    portuguese: "Disco verificado: \(sample.usedPercent)% em uso."
+                )
             }
             await react(to: sample, allowAutomation: allowAutomation)
         } catch {
-            lastAction = "Falha ao ler o disco: \(error.localizedDescription)"
+            lastAction = InterfaceCopy.text(
+                "Could not read the disk: \(error.localizedDescription)",
+                portuguese: "Falha ao ler o disco: \(error.localizedDescription)"
+            )
             SafeCleaner.record("ERROR leitura do disco: \(error.localizedDescription)")
         }
     }
 
     func cleanNow(isAutomatic: Bool = false, level requestedLevel: CleanupLevel? = nil) {
         guard !isCleaning else {
-            lastAction = "Uma limpeza já está em andamento."
+            lastAction = InterfaceCopy.text(
+                "A cleanup is already running.",
+                portuguese: "Uma limpeza já está em andamento."
+            )
             return
         }
         let startingFraction = snapshot?.usedFraction ?? 0
@@ -158,9 +173,14 @@ final class StorageMonitor: ObservableObject {
         )
         isCleaning = true
         lastAction = switch cleanupLevel {
-        case .safe: isAutomatic ? "Limpeza automática segura iniciada…" : "Limpeza segura iniciada…"
-        case .deep: "Limpeza profunda iniciada…"
-        case .emergency: "Limpeza de emergência iniciada…"
+        case .safe:
+            isAutomatic
+                ? InterfaceCopy.text("Automatic safe cleanup started…", portuguese: "Limpeza automática segura iniciada…")
+                : InterfaceCopy.text("Safe cleanup started…", portuguese: "Limpeza segura iniciada…")
+        case .deep:
+            InterfaceCopy.text("Deep cleanup started…", portuguese: "Limpeza profunda iniciada…")
+        case .emergency:
+            InterfaceCopy.text("Emergency cleanup started…", portuguese: "Limpeza de emergência iniciada…")
         }
 
         Task {
@@ -192,14 +212,29 @@ final class StorageMonitor: ObservableObject {
                 ))
                 let missing = ByteCountFormatter.string(fromByteCount: Int64(shortfall), countStyle: .file)
                 let protected = result.blockedTargets == 1
-                    ? "1 alvo ativo foi preservado"
-                    : "\(result.blockedTargets) alvos ativos foram preservados"
-                let targetMessage = "A limpeza automática não consegue liberar \(missing) sem tocar dados protegidos; \(protected)."
-                lastAction = "Faltam liberar \(missing) para ficar abaixo de 80%. \(result.summary)"
+                    ? InterfaceCopy.text("1 active target was preserved", portuguese: "1 alvo ativo foi preservado")
+                    : InterfaceCopy.text(
+                        "\(result.blockedTargets) active targets were preserved",
+                        portuguese: "\(result.blockedTargets) alvos ativos foram preservados"
+                    )
+                let targetMessage = InterfaceCopy.text(
+                    "Automatic cleanup cannot free \(missing) without touching protected data; \(protected).",
+                    portuguese: "A limpeza automática não consegue liberar \(missing) sem tocar dados protegidos; \(protected)."
+                )
+                lastAction = InterfaceCopy.text(
+                    "\(missing) still must be freed to get under 80%. \(result.summary)",
+                    portuguese: "Faltam liberar \(missing) para ficar abaixo de 80%. \(result.summary)"
+                )
                 SafeCleaner.record("TARGET não atingida faltamBytes=\(shortfall) uso=\(percent)%")
                 await notify(
-                    title: "AÇÃO NECESSÁRIA: SSD em \(percent)%",
-                    body: "\(targetMessage) Nova tentativa em \(retryDescription(retrySeconds)).",
+                    title: InterfaceCopy.text(
+                        "ACTION NEEDED: SSD at \(percent)%",
+                        portuguese: "AÇÃO NECESSÁRIA: SSD em \(percent)%"
+                    ),
+                    body: InterfaceCopy.text(
+                        "\(targetMessage) Next attempt in \(retryDescription(retrySeconds)).",
+                        portuguese: "\(targetMessage) Nova tentativa em \(retryDescription(retrySeconds))."
+                    ),
                     critical: true,
                     identifier: "storage-target-unresolved"
                 )
@@ -210,7 +245,10 @@ final class StorageMonitor: ObservableObject {
                 lastAction = result.summary
                 SafeCleaner.record("TARGET atingida uso=\(percent)%")
                 await notify(
-                    title: "AI, Leave My Mac Alone! concluiu a limpeza",
+                    title: InterfaceCopy.text(
+                        "AI, Leave My Mac Alone! finished cleanup",
+                        portuguese: "AI, Leave My Mac Alone! concluiu a limpeza"
+                    ),
                     body: result.summary,
                     critical: false
                 )
@@ -222,7 +260,10 @@ final class StorageMonitor: ObservableObject {
         guard let sample = await Task.detached(priority: .utility, operation: {
             MemoryReliever.readSnapshot()
         }).value else {
-            lastMemoryAction = "Falha ao ler a memória."
+            lastMemoryAction = InterfaceCopy.text(
+                "Could not read memory.",
+                portuguese: "Falha ao ler a memória."
+            )
             return
         }
         memorySnapshot = sample
@@ -236,8 +277,14 @@ final class StorageMonitor: ObservableObject {
 
         SafeCleaner.record("TRIGGER alívio automático de memória: swap=\(Int(sample.swapUsedFraction * 100))%")
         await notify(
-            title: "AI, Leave My Mac Alone! aliviou a memória",
-            body: "RAM crítica detectada; encerrando builds travados.",
+            title: InterfaceCopy.text(
+                "AI, Leave My Mac Alone! relieved memory",
+                portuguese: "AI, Leave My Mac Alone! aliviou a memória"
+            ),
+            body: InterfaceCopy.text(
+                "Critical RAM detected; quitting stuck builds.",
+                portuguese: "RAM crítica detectada; encerrando builds travados."
+            ),
             critical: true
         )
         relieveMemoryNow(isAutomatic: true)
@@ -245,11 +292,16 @@ final class StorageMonitor: ObservableObject {
 
     func relieveMemoryNow(isAutomatic: Bool = false) {
         guard !isRelievingMemory else {
-            lastMemoryAction = "Um alívio de memória já está em andamento."
+            lastMemoryAction = InterfaceCopy.text(
+                "Memory relief is already running.",
+                portuguese: "Um alívio de memória já está em andamento."
+            )
             return
         }
         isRelievingMemory = true
-        lastMemoryAction = isAutomatic ? "Alívio automático de memória iniciado…" : "Aliviando memória…"
+        lastMemoryAction = isAutomatic
+            ? InterfaceCopy.text("Automatic memory relief started…", portuguese: "Alívio automático de memória iniciado…")
+            : InterfaceCopy.text("Relieving memory…", portuguese: "Aliviando memória…")
 
         Task {
             let result = await MemoryReliever.run()
@@ -257,7 +309,14 @@ final class StorageMonitor: ObservableObject {
             isRelievingMemory = false
             await sampleMemoryNow(allowAutomation: false)
             lastMemoryAction = result.summary
-            await notify(title: "AI, Leave My Mac Alone! concluiu o alívio de memória", body: result.summary, critical: false)
+            await notify(
+                title: InterfaceCopy.text(
+                    "AI, Leave My Mac Alone! finished memory relief",
+                    portuguese: "AI, Leave My Mac Alone! concluiu o alívio de memória"
+                ),
+                body: result.summary,
+                critical: false
+            )
         }
     }
 
@@ -271,13 +330,19 @@ final class StorageMonitor: ObservableObject {
             }
             refreshLoginItemState()
         } catch {
-            lastAction = "Falha no início automático: \(error.localizedDescription)"
+            lastAction = InterfaceCopy.text(
+                "Login item failed: \(error.localizedDescription)",
+                portuguese: "Falha no início automático: \(error.localizedDescription)"
+            )
         }
     }
 
     func setCleanupDestination(_ destination: CleanupDestination) {
         guard destination != .externalBackup || externalBackupReady else {
-            lastAction = "Escolha uma pasta em um HD externo antes de ativar este destino."
+            lastAction = InterfaceCopy.text(
+                "Choose a folder on an external drive before using this destination.",
+                portuguese: "Escolha uma pasta em um HD externo antes de ativar este destino."
+            )
             return
         }
         cleanupDestination = destination
@@ -288,10 +353,16 @@ final class StorageMonitor: ObservableObject {
         if level == .emergency, automaticCleanupLevel != .emergency {
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "Autorizar limpeza automática de emergência?"
-            alert.informativeText = "Quando o SSD continuar acima de 80%, o app poderá apagar arquivos do Codex arquivados há pelo menos 7 dias e bundles de VM do Claude sem arquivos abertos. Sessões atuais, projetos e dados pessoais continuam protegidos."
-            alert.addButton(withTitle: "Autorizar Emergência")
-            alert.addButton(withTitle: "Cancelar")
+            alert.messageText = InterfaceCopy.text(
+                "Authorize automatic emergency cleanup?",
+                portuguese: "Autorizar limpeza automática de emergência?"
+            )
+            alert.informativeText = InterfaceCopy.text(
+                "While the SSD stays above 80%, the app may delete Codex files archived for at least 7 days and Claude VM bundles with no open files. Current sessions, projects, and personal data stay protected.",
+                portuguese: "Quando o SSD continuar acima de 80%, o app poderá apagar arquivos do Codex arquivados há pelo menos 7 dias e bundles de VM do Claude sem arquivos abertos. Sessões atuais, projetos e dados pessoais continuam protegidos."
+            )
+            alert.addButton(withTitle: InterfaceCopy.text("Authorize Emergency", portuguese: "Autorizar Emergência"))
+            alert.addButton(withTitle: InterfaceCopy.text("Cancel", portuguese: "Cancelar"))
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
         automaticCleanupLevel = level
@@ -299,8 +370,8 @@ final class StorageMonitor: ObservableObject {
 
     func chooseExternalBackupFolder() {
         let panel = NSOpenPanel()
-        panel.title = "Escolher pasta de backup"
-        panel.prompt = "Usar esta pasta"
+        panel.title = InterfaceCopy.text("Choose a backup folder", portuguese: "Escolher pasta de backup")
+        panel.prompt = InterfaceCopy.text("Use this folder", portuguese: "Usar esta pasta")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
@@ -309,13 +380,19 @@ final class StorageMonitor: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         guard isWritableExternalFolder(url) else {
-            lastAction = "Escolha uma pasta gravável em um HD externo."
+            lastAction = InterfaceCopy.text(
+                "Choose a writable folder on an external drive.",
+                portuguese: "Escolha uma pasta gravável em um HD externo."
+            )
             return
         }
         externalBackupPath = url.standardizedFileURL.path
         defaults.set(externalBackupPath, forKey: Keys.externalBackupPath)
         setCleanupDestination(.externalBackup)
-        lastAction = "Backup externo configurado."
+        lastAction = InterfaceCopy.text(
+            "External backup configured.",
+            portuguese: "Backup externo configurado."
+        )
     }
 
     private func react(to sample: StorageSnapshot, allowAutomation: Bool) async {
@@ -336,8 +413,14 @@ final class StorageMonitor: ObservableObject {
         ) {
             SafeCleaner.record("TRIGGER automático uso=\(sample.usedPercent)%")
             await notify(
-                title: "AI, Leave My Mac Alone! iniciou a limpeza",
-                body: "O armazenamento chegou a \(sample.usedPercent)%.",
+                title: InterfaceCopy.text(
+                    "AI, Leave My Mac Alone! started cleanup",
+                    portuguese: "AI, Leave My Mac Alone! iniciou a limpeza"
+                ),
+                body: InterfaceCopy.text(
+                    "Storage reached \(sample.usedPercent)%.",
+                    portuguese: "O armazenamento chegou a \(sample.usedPercent)%."
+                ),
                 critical: true
             )
             cleanNow(isAutomatic: true)
@@ -348,8 +431,11 @@ final class StorageMonitor: ObservableObject {
             warningLatched = true
             defaults.set(true, forKey: Keys.warningLatched)
             await notify(
-                title: "Armazenamento quase cheio",
-                body: "O disco está em \(sample.usedPercent)%. A limpeza automática começa em 78% para proteger o teto de 80%.",
+                title: InterfaceCopy.text("Storage is almost full", portuguese: "Armazenamento quase cheio"),
+                body: InterfaceCopy.text(
+                    "The disk is \(sample.usedPercent)% full. Automatic cleanup starts at 78% to protect the 80% ceiling.",
+                    portuguese: "O disco está em \(sample.usedPercent)%. A limpeza automática começa em 78% para proteger o teto de 80%."
+                ),
                 critical: sample.usedFraction >= StoragePolicy.cleanupThreshold
             )
         }
@@ -380,9 +466,15 @@ final class StorageMonitor: ObservableObject {
         )
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "SSD em \(snapshot.usedPercent)%: ação necessária"
-        alert.informativeText = "A limpeza automática não consegue garantir o teto de 80%. Ainda faltam liberar \(missing) sem tocar projetos ativos ou dados protegidos."
-        alert.addButton(withTitle: "Abrir monitor")
+        alert.messageText = InterfaceCopy.text(
+            "SSD at \(snapshot.usedPercent)%: action needed",
+            portuguese: "SSD em \(snapshot.usedPercent)%: ação necessária"
+        )
+        alert.informativeText = InterfaceCopy.text(
+            "Automatic cleanup cannot guarantee the 80% ceiling. \(missing) still must be freed without touching active projects or protected data.",
+            portuguese: "A limpeza automática não consegue garantir o teto de 80%. Ainda faltam liberar \(missing) sem tocar projetos ativos ou dados protegidos."
+        )
+        alert.addButton(withTitle: InterfaceCopy.text("Open monitor", portuguese: "Abrir monitor"))
         NSApplication.shared.activate(ignoringOtherApps: true)
         alert.runModal()
     }
@@ -415,9 +507,13 @@ final class StorageMonitor: ObservableObject {
     }
 
     private func retryDescription(_ seconds: Int) -> String {
-        seconds >= 60 && seconds.isMultiple(of: 60)
-            ? "\(seconds / 60) minutos"
-            : "\(seconds) segundos"
+        if seconds >= 60, seconds.isMultiple(of: 60) {
+            let minutes = seconds / 60
+            return minutes == 1
+                ? InterfaceCopy.text("1 minute", portuguese: "1 minuto")
+                : InterfaceCopy.text("\(minutes) minutes", portuguese: "\(minutes) minutos")
+        }
+        return InterfaceCopy.text("\(seconds) seconds", portuguese: "\(seconds) segundos")
     }
 
     private func isWritableExternalFolder(_ url: URL) -> Bool {
@@ -437,7 +533,10 @@ final class StorageMonitor: ObservableObject {
                 try SMAppService.mainApp.register()
                 defaults.set(true, forKey: Keys.didConfigureLoginItem)
             } catch {
-                lastAction = "Abra Itens de Início para autorizar o monitor."
+                lastAction = InterfaceCopy.text(
+                    "Open Login Items to authorize the monitor.",
+                    portuguese: "Abra Itens de Início para autorizar o monitor."
+                )
             }
         }
         refreshLoginItemState()

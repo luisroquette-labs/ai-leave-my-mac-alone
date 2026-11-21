@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Documentar a arquitetura real do Clean My Mac (módulos + modelo de segurança) e fechar a única lacuna técnica real de "Fundamentos": `find`/`du` descartam candidatos silenciosamente quando falham, sem deixar rastro no log.
+**Goal:** Documentar a arquitetura real do AI, Leave My Mac Alone! (módulos + modelo de segurança) e fechar a única lacuna técnica real de "Fundamentos": `find`/`du` descartam candidatos silenciosamente quando falham, sem deixar rastro no log.
 
 **Architecture:** Nenhuma mudança estrutural. Task 1 é documentação pura (`docs/ARCHITECTURE.md`), sourced diretamente do código existente. Task 2 é um fix cirúrgico em `Sources/CleanMyMac/SafeCleaner.swift`: extrai uma função pura `scanFailureLogMessage` para formar a mensagem de log, e passa a chamá-la nos dois pontos onde `find`/`du` hoje falham em silêncio.
 

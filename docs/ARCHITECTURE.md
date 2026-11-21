@@ -1,3 +1,7 @@
+# Architecture
+
+The product name is **AI, Leave My Mac Alone!** Names in the tables are Swift modules and folders. They stay stable so macOS permissions already granted keep working. The notes below are in Portuguese.
+
 # Arquitetura
 
 ## Módulos

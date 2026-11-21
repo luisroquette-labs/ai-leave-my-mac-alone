@@ -10,7 +10,10 @@ struct CleanMyMacApp: App {
         } label: {
             Text(monitor.menuBarTitle)
                 .monospacedDigit()
-                .accessibilityLabel("AI, Leave My Mac Alone!: \(monitor.menuBarTitle) do armazenamento usado")
+                .accessibilityLabel(InterfaceCopy.text(
+                    "AI, Leave My Mac Alone!: \(monitor.menuBarTitle) storage used",
+                    portuguese: "AI, Leave My Mac Alone!: \(monitor.menuBarTitle) do armazenamento usado"
+                ))
         }
         .menuBarExtraStyle(.window)
 
