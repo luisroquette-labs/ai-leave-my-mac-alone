@@ -26,6 +26,7 @@ jobs:
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - name: Run lightweight web tests
         run: |
+          python3 Scripts/check-comments.py
           node Scripts/test-web-demo.mjs
           node Scripts/test-chrome-extension.mjs
           python Scripts/test-web-demo-e2e.py

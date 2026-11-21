@@ -5,6 +5,7 @@ project_dir="${0:A:h:h}"
 cd "$project_dir"
 
 ./Scripts/test-preflight-parity.sh
+python3 Scripts/check-comments.py
 /usr/bin/plutil -lint Resources/Info.plist
 ! /usr/bin/grep -Fq '.confirmationDialog(' Sources/CleanMyMac/MenuBarView.swift || {
     print -u2 "Native cleanup confirmation breaks inside MenuBarExtra"

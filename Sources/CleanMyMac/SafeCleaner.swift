@@ -100,19 +100,12 @@ enum SafeCleaner {
         return "ERROR \(operation): \(withoutControlCharacters(path)) \(sanitizedScanFailureReason(result.output))"
     }
 
-    /// Replaces control characters (including NUL and newlines) with spaces so a string of
-    /// unknown origin — command output or a filesystem path — can't split a log entry across
-    /// multiple lines or embed unreadable bytes. A path can't contain NUL (it's a
-    /// null-terminated C string at the OS level) but it can legitimately contain a newline or
-    /// tab, so both path and command output go through this before being logged.
     private static func withoutControlCharacters(_ raw: String) -> String {
         String(raw.unicodeScalars.map {
             CharacterSet.controlCharacters.contains($0) ? " " : Character($0)
         })
     }
 
-    /// Collapses and caps `withoutControlCharacters` output so one command failure can't dump
-    /// an entire find/du result set into the log.
     private static func sanitizedScanFailureReason(_ raw: String) -> String {
         let collapsed = withoutControlCharacters(raw)
             .split(separator: " ", omittingEmptySubsequences: true)
@@ -121,9 +114,6 @@ enum SafeCleaner {
         return "\(collapsed.prefix(scanFailureReasonLimit))…"
     }
 
-    /// Parses the leading whitespace-separated field of `du -sk` output as kibibytes.
-    /// Returns nil when the output doesn't start with a number, distinguishing a genuine
-    /// parse failure (log-worthy) from a legitimately small/ineligible artifact.
     static func parseDuSizeKiB(_ output: String) -> Int? {
         guard let first = output.split(whereSeparator: { $0.isWhitespace }).first else { return nil }
         return Int(first)
@@ -1126,8 +1116,6 @@ enum SafeCleaner {
         return (removed, blocked, failed)
     }
 
-    /// Ociosa = sem commit/checkout/stage nem arquivo modificado (fora de artefatos)
-    /// dentro da janela. Qualquer falha de leitura conta como em uso.
     private static func isIdleWorktree(_ gitRoot: URL) -> Bool {
         let gitDirResult = runCommand("/usr/bin/git", ["-C", gitRoot.path, "rev-parse", "--absolute-git-dir"])
         guard gitDirResult.code == 0 else { return false }

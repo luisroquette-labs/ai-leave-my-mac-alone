@@ -38,7 +38,6 @@ struct MenuBarView: View {
         }
     }
 
-    // MARK: - Header
 
     private var header: some View {
         HStack(spacing: 12) {
@@ -77,8 +76,6 @@ struct MenuBarView: View {
             InterfaceCopy.text("Cleanup needed", portuguese: "Limpeza necessária")
         }
     }
-
-    // MARK: - Instruments
 
     private var instruments: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -159,7 +156,6 @@ struct MenuBarView: View {
         }
     }
 
-    /// Splits "1.2 GB" into a number and a unit so the number matches the disk readout.
     private var freeMemoryParts: (value: String, unit: String) {
         guard let snapshot = monitor.memorySnapshot else {
             return (InterfaceCopy.text("Reading…", portuguese: "Lendo…"), "")
@@ -184,8 +180,6 @@ struct MenuBarView: View {
         let amount = ByteCountFormatter.string(fromByteCount: Int64(snapshot.availableBytes), countStyle: .file)
         return InterfaceCopy.text("\(amount) free", portuguese: "\(amount) livres")
     }
-
-    // MARK: - Automation
 
     private var automation: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -245,8 +239,6 @@ struct MenuBarView: View {
             }
         }
     }
-
-    // MARK: - Activity and confirmation
 
     private var activity: some View {
         HStack(spacing: 10) {
@@ -365,8 +357,6 @@ struct MenuBarView: View {
             InterfaceCopy.text("Back up and free space", portuguese: "Fazer backup e liberar espaço")
         }
     }
-
-    // MARK: - Actions
 
     private var actions: some View {
         VStack(spacing: 8) {

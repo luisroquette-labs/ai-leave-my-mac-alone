@@ -1,6 +1,4 @@
 #!/bin/bash
-# Sums free space the app recorded as gained. Paste the same logic from the README
-# when this checkout is not on the Mac that runs the app.
 set -euo pipefail
 
 log_dir="${HOME}/Library/Logs/CleanMyMac"

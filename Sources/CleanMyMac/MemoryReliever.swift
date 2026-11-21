@@ -32,10 +32,6 @@ struct MemoryReliefResult: Sendable {
     }
 }
 
-/// Mata processos de build órfãos que estouram RAM/swap — mesma causa raiz identificada
-/// no travamento de 11/09/2026 (dois `next-build` paralelos esquecidos de sessões antigas
-/// consumiram ~10GB e forçaram o swap a 95%). Nunca toca no que está fora da lista de alvos.
-/// A decisão de alvo vive em MemoryReliefTargetPolicy (Core), coberta por regressão.
 enum MemoryReliever {
     static func readSnapshot() -> MemorySnapshot? {
         guard let freeBytes = freePhysicalBytes(), let swap = swapUsage() else { return nil }
@@ -107,18 +103,11 @@ enum MemoryReliever {
         return fields.count == 2 && Int32(fields[0]) == parentPID && String(fields[1]) == command
     }
 
-    /// VM do colima ligada sem nenhum container ativo = sala vazia com a luz acesa
-    /// (caso real de 14/09/2026: 18 dias ociosa, ~6GB de RAM/swap). Só desliga via
-    /// `colima stop` gracioso e apenas com `docker ps` comprovadamente vazio; nunca
-    /// mata o processo da VM diretamente.
     private static func stopIdleColimaVM(processListing: String) -> Bool {
         guard processListing.contains("com.apple.Virtualization.VirtualMachine") else { return false }
         guard let colima = firstExistingBinary(["/opt/homebrew/bin/colima", "/usr/local/bin/colima"]),
               let docker = firstExistingBinary(["/opt/homebrew/bin/docker", "/usr/local/bin/docker"]) else { return false }
         guard SafeCleaner.runCommand(colima, ["status"]).code == 0 else { return false }
-        // contexto fixado: o default do usuário pode apontar pra outro daemon (Docker
-        // Desktop) e mascarar containers ativos do colima — falso "vazio" desligaria
-        // uma VM em uso. Contexto inexistente => erro => não desliga (fail-safe).
         let containers = SafeCleaner.runCommand(docker, ["--context", "colima", "ps", "-q"])
         guard containers.code == 0,
               containers.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

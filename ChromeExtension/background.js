@@ -8,7 +8,6 @@ async function relieveMemory() {
 
   let discarded = 0;
   for (; discarded < MAX_DISCARDS_PER_CHECK; discarded++) {
-    // Sem ID, o Chrome escolhe a aba menos importante e preserva a aba ativa.
     const tab = await chrome.tabs.discard();
     if (!tab) break;
   }

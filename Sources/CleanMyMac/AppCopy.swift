@@ -4,8 +4,6 @@ enum InterfaceLanguage: Equatable, Sendable {
     case english
     case portuguese
 
-    /// English is the default. Portuguese is selected only when it appears in the
-    /// preferred-language list before any English identifier.
     static func resolve(preferredLanguages: [String]) -> InterfaceLanguage {
         for raw in preferredLanguages {
             let identifier = raw.replacingOccurrences(of: "_", with: "-").lowercased()

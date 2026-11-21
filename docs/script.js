@@ -213,7 +213,6 @@ export function applyLanguage(lang) {
   try {
     localStorage.setItem('leave-my-mac-alone-lang', currentLang);
   } catch {
-    /* private mode */
   }
   const url = new URL(window.location.href);
   if (currentLang === 'pt') url.searchParams.set('lang', 'pt');
@@ -229,7 +228,6 @@ function initialLanguage() {
     const stored = localStorage.getItem('leave-my-mac-alone-lang');
     if (stored === 'pt' || stored === 'en') return stored;
   } catch {
-    /* private mode */
   }
   return 'en';
 }
