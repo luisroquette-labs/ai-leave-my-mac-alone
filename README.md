@@ -46,7 +46,7 @@ Memory is a separate gauge:
 | **75% and above** | Warning on the memory gauge. |
 | **90% and above, and free RAM under 300 MB** | Automatic memory relief, if it is on, then a 60 second cooldown. |
 
-`StoragePolicy.emergencyThreshold` is `0.95` and a test pins that constant. No production path reads it. Crossing 95% disk does not change the level, the cooldown, or which files can be removed. **Emergency is a cleanup level you authorize, not a disk percentage.** Older GitHub About text and the previous demo video said the disk warns at 90% and cleans at 95%. That description does not match the code. Replacement About text is in [`docs/RELEASE_NOTES_NEXT.md`](docs/RELEASE_NOTES_NEXT.md).
+`StoragePolicy.emergencyThreshold` is `0.95` and a test pins that constant. No production path reads it. Crossing 95% disk does not change the level, the cooldown, or which files can be removed. **Emergency is a cleanup level you authorize, not a disk percentage.** The previous demo video said the disk warns at 90% and cleans at 95%. That description does not match the code; the GitHub About text was corrected on 2026-11-21.
 
 ```mermaid
 flowchart LR
@@ -303,14 +303,6 @@ Storage samples, preferences, and logs stay on the Mac. The app has no network c
 - Caches are cleaned only when that tool is installed.
 - The distributed build is Apple silicon only and is not notarized yet.
 - The published 2.3.1 ZIP predates the English menu. The next release notes are drafted in [`docs/RELEASE_NOTES_NEXT.md`](docs/RELEASE_NOTES_NEXT.md) and are not published.
-
-## Repository description
-
-Paste this over the GitHub About text before the Product Hunt launch. The live About text still says the disk warns at 90% and cleans at 95%.
-
-```text
-Native macOS menu-bar SSD guard for people building with AI. Warns at 75% disk, cleans regenerable developer artifacts at 78%, and keeps trying to get back under the 80% ceiling. Local-first and open source.
-```
 
 ## Open source
 
