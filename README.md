@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/DOWNLOAD-FOR%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Download AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.3.1"><img src="https://img.shields.io/badge/VERSION-2.3.1-201C19?style=for-the-badge" alt="Version 2.3.1"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.4.0"><img src="https://img.shields.io/badge/VERSION-2.4.0-201C19?style=for-the-badge" alt="Version 2.4.0"></a>
   <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status"></a>
 </p>
 
@@ -29,7 +29,7 @@ AI, Leave My Mac Alone! samples the data volume every 30 seconds and speeds up t
 
 The menu shows `usedPercent`, which is the raw fraction rounded to the nearest integer. Warning, cleanup, the monitoring interval, and the hard-limit cooldown all use that same rounded number.
 
-| Rounded disk use | What v2.3.1 does |
+| Rounded disk use | What v2.4.0 does |
 |:---:|---|
 | **Below 75%** | Watch. Sample every 30 seconds. A warning latch resets once use falls below 73%. |
 | **75–77%** | One warning. Sample every 5 seconds. No cleanup yet. |
@@ -301,8 +301,7 @@ Storage samples, preferences, and logs stay on the Mac. The app has no network c
 - Trash mode does not return space to the SSD until you empty the Trash.
 - Projects outside the documented roots are not scanned.
 - Caches are cleaned only when that tool is installed.
-- The distributed build is Apple silicon only and is not notarized yet.
-- The published 2.3.1 ZIP predates the English menu. The next release notes are drafted in [`docs/RELEASE_NOTES_NEXT.md`](docs/RELEASE_NOTES_NEXT.md) and are not published.
+- The distributed build is Apple silicon only. From 2.4.0 the release ZIP is signed with Developer ID and notarized by Apple (see [`docs/SIGNING.md`](docs/SIGNING.md)).
 
 ## Open source
 
