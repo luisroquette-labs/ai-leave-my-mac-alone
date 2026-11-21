@@ -1,8 +1,8 @@
 # AI, Leave My Mac Alone! — next release (not published)
 
-Suggested version: **2.4.0**. This file is the draft. Do not create a GitHub release, do not push a `v*` tag, and do not bump `VERSION` until the Developer ID build in [SIGNING.md](SIGNING.md) is stapled and the screenshots below exist.
+Version: **2.4.0**. This file is the draft. Do not create a GitHub release or push a `v*` tag until the Developer ID build in [SIGNING.md](SIGNING.md) is stapled and the screenshots below exist.
 
-The source tree still reports **2.3.1**. The ZIP on the current GitHub release is that build: Portuguese UI, ad-hoc signature. Product Hunt should wait until the download is this next build.
+`VERSION`, `Info.plist` (build 26), and the Chrome extension manifest report **2.4.0** so the signed build carries the right version. The README badge and the website still say **2.3.1** until the stapled 2.4.0 zip is published. The ZIP on the current GitHub release is that build: Portuguese UI, ad-hoc signature. Product Hunt should wait until the download is this next build.
 
 ## Suggested title
 
@@ -26,8 +26,8 @@ Native macOS menu-bar SSD guard for people building with AI. Warns at 75% disk, 
 
 ## Before you tag 2.4.0
 
-1. Bump `VERSION`, `Resources/Info.plist` (`CFBundleShortVersionString` and `CFBundleVersion`), `ChromeExtension/manifest.json`, the README badge, and `softwareVersion` / `vX.Y.Z · Apple silicon` on the website together.
-2. Sign and staple using `docs/SIGNING.md`.
+1. When the stapled zip is published, bump the README badge and `softwareVersion` / `vX.Y.Z · Apple silicon` on the website (and `Scripts/test-web-demo.mjs`). `VERSION`, `Info.plist`, and the extension manifest are already 2.4.0.
+2. Sign and staple with the scripted path in `docs/SIGNING.md` (`make-app.sh` with `AILMMA_SIGN_IDENTITY`, then `notarize-app.sh`).
 3. Replace the assets listed in `branding/needs-regeneration/README.md`.
 4. Capture the English menu-bar screens listed in that same file.
 5. Only then tag. Tagging `v*` runs `.github/workflows/release.yml`, which publishes a release. That workflow still ad-hoc signs. For Product Hunt, ship the stapled zip, not the ad-hoc artifact from the tag workflow, unless the workflow is updated first.
