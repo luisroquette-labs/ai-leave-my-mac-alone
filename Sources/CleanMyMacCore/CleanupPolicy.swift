@@ -99,8 +99,6 @@ public enum CleanupPolicy {
 
     public static let temporaryArtifactMinimumAge: TimeInterval = 24 * 3_600
 
-    /// Somente formatos inequivocamente regeneráveis em filhos diretos de
-    /// /private/tmp. Perfis de navegador e diretórios de agentes não casam.
     public static func isEligibleTemporaryArtifact(
         name: String,
         childNames: Set<String>,
@@ -120,8 +118,6 @@ public enum CleanupPolicy {
         return isXcodeOutput || isNPMCache || isDenoCache
     }
 
-    /// Worktrees de agente dentro de pasta protegida (`~/.codex`): só esta subárvore
-    /// é varrida; config, sessões e credenciais do Codex continuam protegidas.
     public static func agentWorktreeSubtrees(homePath: String) -> [String] {
         [URL(filePath: homePath).appending(path: ".codex/worktrees").path]
     }
@@ -245,26 +241,20 @@ public enum CleanupPolicy {
         excludedDirectoryNames.sorted() + ["claude-*"]
     }
 
-    /// Worktree do Git (`.git` é arquivo, não pasta): agentes trabalham nelas sem
-    /// deixar processo com cwd lá dentro, então só entram na limpeza quando ociosas.
     public static func isLinkedWorktree(_ gitRoot: String) -> Bool {
         var isDirectory: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: gitRoot + "/.git", isDirectory: &isDirectory)
         return exists && !isDirectory.boolValue
     }
 
-    /// Janela de ociosidade da worktree: o terminal do agente pode seguir aberto
-    /// por dias, mas trabalho sem atividade na própria worktree já terminou.
     public static let worktreeIdleThreshold: TimeInterval = 4 * 3_600
     public static let reclaimableWorktreeIdleThreshold: TimeInterval = 24 * 3_600
-    /// Branch cujo upstream sumiu (PR mergeado e branch apagada) já terminou.
     public static let finishedWorktreeIdleThreshold: TimeInterval = 3_600
 
     public static func worktreeIdleThreshold(upstreamGone: Bool) -> TimeInterval {
         upstreamGone ? finishedWorktreeIdleThreshold : worktreeIdleThreshold
     }
 
-    /// Atividade desconhecida conta como em uso: na dúvida, não apaga.
     public static func isWorktreeIdle(lastActivity: Date?, now: Date, upstreamGone: Bool) -> Bool {
         guard let lastActivity else { return false }
         return now.timeIntervalSince(lastActivity) >= worktreeIdleThreshold(upstreamGone: upstreamGone)
@@ -287,8 +277,6 @@ public enum CleanupPolicy {
         return now.timeIntervalSince(lastActivity) >= reclaimableWorktreeIdleThreshold
     }
 
-    /// Outra worktree aponta o próprio node_modules/.next para este alvo:
-    /// apagar quebraria a irmã silenciosamente.
     public static func matchingSymlinkSources(
         target: String,
         references: [ArtifactSymlinkReference]

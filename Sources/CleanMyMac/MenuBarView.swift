@@ -38,7 +38,6 @@ struct MenuBarView: View {
         }
     }
 
-    // MARK: - Header
 
     private var header: some View {
         HStack(spacing: 12) {
@@ -73,7 +72,6 @@ struct MenuBarView: View {
         }
     }
 
-    // MARK: - Instrumentos (disco + memória)
 
     private var instruments: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -146,8 +144,6 @@ struct MenuBarView: View {
         }
     }
 
-    /// Divide "1,2 GB" em número e unidade para o número ficar do mesmo peso visual
-    /// que o "87%" do disco — sem isso a unidade herdava o tamanho gigante do número.
     private var freeMemoryParts: (value: String, unit: String) {
         guard let snapshot = monitor.memorySnapshot else { return ("Lendo…", "") }
         let formatted = ByteCountFormatter.string(fromByteCount: Int64(snapshot.freeBytes), countStyle: .memory)
@@ -164,7 +160,6 @@ struct MenuBarView: View {
         return "\(ByteCountFormatter.string(fromByteCount: Int64(snapshot.availableBytes), countStyle: .file)) livres"
     }
 
-    // MARK: - Automação
 
     private var automation: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -213,7 +208,6 @@ struct MenuBarView: View {
         }
     }
 
-    // MARK: - Atividade e confirmação
 
     private var activity: some View {
         HStack(spacing: 10) {
@@ -294,7 +288,6 @@ struct MenuBarView: View {
         }
     }
 
-    // MARK: - Ações
 
     private var actions: some View {
         VStack(spacing: 8) {

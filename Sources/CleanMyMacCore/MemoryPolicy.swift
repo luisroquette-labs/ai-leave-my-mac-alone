@@ -23,9 +23,6 @@ public enum MemoryLevel: String, Sendable {
     case critical
 }
 
-/// Limiares derivados do travamento real de 11/09/2026: dois builds Next.js órfãos
-/// consumiram ~10GB de RAM, a livre caiu a ~19MB e o swap chegou a 95% de 20GB,
-/// forçando o disco a fazer I/O constante de paginação e travando o Mac inteiro.
 public enum MemoryPolicy {
     public static let freeBytesCriticalThreshold: UInt64 = 300 * 1_024 * 1_024
     public static let swapCriticalFraction = 0.90
@@ -55,12 +52,6 @@ public enum MemoryPolicy {
     }
 }
 
-/// Decisão pura de alvo do alívio de memória, extraída do MemoryReliever para teste.
-///
-/// REGRESSÃO 14/09/2026: com o swap a 96%, o macOS pagina os processos culpados e o
-/// RSS deles desinfla (next-servers de 13 dias apareciam com ~300MB residentes e 2–3GB
-/// no swap). RSS e idade sozinhos não provam abandono: somente um processo adotado
-/// pelo launchd (PPID 1) e antigo é tratado como órfão.
 public enum MemoryReliefTargetPolicy {
     public static let targetPatterns = [
         "next-build", "tsc --", "webpack", "vite build",
@@ -70,7 +61,6 @@ public enum MemoryReliefTargetPolicy {
         "Comet", "Terminal", "claude.exe", "Finder", "WindowServer",
         "loginwindow", "kernel_task", "Dock", "SystemUIServer", "iTerm",
     ]
-    /// Lixo puro: telemetria do Next.js que deveria durar segundos e fica órfã aos montes.
     public static let alwaysKillPatterns = ["next/dist/telemetry/detached-flush.js"]
     public static let orphanUptimeSeconds: TimeInterval = 2 * 3_600
 
@@ -83,7 +73,6 @@ public enum MemoryReliefTargetPolicy {
         return uptimeSeconds >= orphanUptimeSeconds
     }
 
-    /// Converte o formato etime do ps ([[dd-]hh:]mm:ss) em segundos.
     public static func parseEtime(_ raw: String) -> TimeInterval? {
         let trimmed = raw.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return nil }
