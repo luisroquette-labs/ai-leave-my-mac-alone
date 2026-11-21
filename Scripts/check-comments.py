@@ -126,6 +126,8 @@ def hash_comments(text):
 assert slash_comments('let url = "https://example.test/path"', "swift") == []
 assert len(slash_comments('let value = 1 // comment', "swift")) == 1
 assert slash_comments('let text = #"/* literal */"#', "swift") == []
+assert slash_comments('const url = "https://example.test/path"', "js") == []
+assert len(slash_comments('const value = 1; // comment', "js")) == 1
 assert hash_comments('#!/bin/sh\necho "# literal"\n# comment\n') == [27]
 
 for name in FILES:
@@ -134,12 +136,12 @@ for name in FILES:
     path = ROOT / name
     if not path.is_file():
         continue
-    text = path.read_text() if path.suffix in {".swift", ".js", ".css", ".html", ".py", ".sh", ".yml", ".yaml"} else ""
+    text = path.read_text() if path.suffix in {".swift", ".js", ".mjs", ".cjs", ".css", ".html", ".py", ".sh", ".yml", ".yaml"} else ""
     if path.suffix == ".swift":
         offsets = slash_comments(text, "swift")
         if name == "Package.swift" and re.match(r"// swift-tools-version: \d+\.\d+(?:\.\d+)?(?:\n|$)", text):
             offsets = [offset for offset in offsets if offset != 0]
-    elif path.suffix == ".js":
+    elif path.suffix in {".js", ".mjs", ".cjs"}:
         offsets = slash_comments(text, "js")
     elif path.suffix == ".css":
         offsets = slash_comments(text, "css")
