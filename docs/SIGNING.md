@@ -15,7 +15,7 @@ AILMMA_SIGN_IDENTITY="Developer ID Application: luis roquette (S3YCFYY8SC)" ./Sc
 AILMMA_NOTARY_PROFILE="notchagent-notary" ./Scripts/notarize-app.sh
 ```
 
-`make-app.sh` signs the executable and the bundle with the hardened runtime and a secure timestamp when `AILMMA_SIGN_IDENTITY` is set. Without it the build stays ad-hoc, which is what CI and the tag workflow use. `notarize-app.sh` checks the Developer ID authority, the bundle identifier, the hardened runtime, and that `Info.plist` matches `VERSION`, then submits a zip with `notarytool`, staples, runs `stapler validate` and `spctl`, and writes `release/AI-Leave-My-Mac-Alone-<version>.zip`, the stable `AI-Leave-My-Mac-Alone.zip`, and the `.sha256`. Any existing `notarytool` Keychain profile for team S3YCFYY8SC works.
+`make-app.sh` signs the executable and the bundle with the hardened runtime and a secure timestamp when `AILMMA_SIGN_IDENTITY` is set. Without it the build stays ad-hoc, which is what CI and the tag workflow use. `notarize-app.sh` checks the Developer ID authority, the bundle identifier, the hardened runtime, and that `Info.plist` matches `VERSION`, then submits a zip with `notarytool`, staples, runs `stapler validate` and `spctl`, and writes `release/AI-Leave-My-Mac-Alone-<version>.zip`, the stable `AI-Leave-My-Mac-Alone.zip`, and the `.sha256`. Any existing `notarytool` Keychain profile for team S3YCFYY8SC works. If the Keychain holds more than one certificate with the same Developer ID name, `codesign` reports the name as ambiguous; pass the 40-character SHA-1 hash from `security find-identity -v -p codesigning` as `AILMMA_SIGN_IDENTITY` instead.
 
 The manual steps below do the same thing by hand.
 
