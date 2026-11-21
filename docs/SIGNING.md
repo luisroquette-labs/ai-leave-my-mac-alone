@@ -6,6 +6,19 @@ Use a **Developer ID Application** certificate. A Mac App Store, Apple Developme
 
 Leave `CFBundleIdentifier` as `com.luisroquette.clean-my-mac`. Changing it drops Login Items, notifications, and other macOS permissions already granted. The executable file inside the bundle is `Contents/MacOS/CleanMyMac`. The name in the menu bar and Finder is **AI, Leave My Mac Alone!**
 
+## Scripted path
+
+```bash
+cd /path/to/ai-leave-my-mac-alone
+AILMMA_SIGN_IDENTITY="Developer ID Application: luis roquette (S3YCFYY8SC)" ./Scripts/make-app.sh
+./Scripts/preflight.sh
+AILMMA_NOTARY_PROFILE="notchagent-notary" ./Scripts/notarize-app.sh
+```
+
+`make-app.sh` signs the executable and the bundle with the hardened runtime and a secure timestamp when `AILMMA_SIGN_IDENTITY` is set. Without it the build stays ad-hoc, which is what CI and the tag workflow use. `notarize-app.sh` checks the Developer ID authority, the bundle identifier, the hardened runtime, and that `Info.plist` matches `VERSION`, then submits a zip with `notarytool`, staples, runs `stapler validate` and `spctl`, and writes `release/AI-Leave-My-Mac-Alone-<version>.zip`, the stable `AI-Leave-My-Mac-Alone.zip`, and the `.sha256`. Any existing `notarytool` Keychain profile for team S3YCFYY8SC works. If the Keychain holds more than one certificate with the same Developer ID name, `codesign` reports the name as ambiguous; pass the 40-character SHA-1 hash from `security find-identity -v -p codesigning` as `AILMMA_SIGN_IDENTITY` instead.
+
+The manual steps below do the same thing by hand.
+
 ## 1. Find the certificate
 
 ```bash

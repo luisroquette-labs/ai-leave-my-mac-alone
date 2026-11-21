@@ -20,7 +20,18 @@ swift build -c release
 if [[ -f "$project_dir/Resources/AppIcon.icns" ]]; then
     /bin/cp "$project_dir/Resources/AppIcon.icns" "$contents_dir/Resources/AppIcon.icns"
 fi
-/usr/bin/codesign --force --deep --sign - "$staging_app"
+sign_identity="${AILMMA_SIGN_IDENTITY:--}"
+if [[ "$sign_identity" == "-" ]]; then
+    /usr/bin/codesign --force --deep --sign - "$staging_app"
+else
+    [[ "$sign_identity" == "Developer ID Application:"* || "$sign_identity" =~ '^[0-9A-F]{40}$' ]] || {
+        print -u2 "AILMMA_SIGN_IDENTITY must be a Developer ID Application identity, its SHA-1 hash, or -"
+        exit 1
+    }
+    /usr/bin/codesign --force --options runtime --timestamp --sign "$sign_identity" \
+        "$contents_dir/MacOS/CleanMyMac"
+    /usr/bin/codesign --force --options runtime --timestamp --sign "$sign_identity" "$staging_app"
+fi
 /usr/bin/codesign --verify --deep --strict "$staging_app"
 
 if [[ -e "$final_app" ]]; then
