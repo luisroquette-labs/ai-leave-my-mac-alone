@@ -169,8 +169,6 @@ import Testing
     ])
 }
 
-// REGRESSÃO (21/10/2026): a varredura de worktrees levava até 8 minutos,
-// encontrava zero candidatos e era repetida em toda rodada de emergência.
 @Test func emptyWholeWorktreeScanGetsOneHourCooldown() {
     let now = Date(timeIntervalSince1970: 100_000)
     #expect(StoragePolicy.shouldScanWholeWorktrees(lastEmptyScanAt: nil, now: now))
@@ -629,8 +627,6 @@ import Testing
 }
 
 @Test func scanFailureLogMessageSanitizesControlCharactersInPath() {
-    // A POSIX path can't contain NUL (it's a null-terminated C string), but it can
-    // legitimately contain a newline or tab — APFS/HFS+ only forbid "/" and NUL.
     let failure = CommandResult(code: 1, output: "boom")
     let message = SafeCleaner.scanFailureLogMessage(
         operation: "varredura de artefatos",
@@ -642,10 +638,6 @@ import Testing
     #expect(message?.contains("\t") == false)
 }
 
-// REGRESSÃO (28/09/2026): a limpeza automática apagou 47 node_modules, inclusive
-// de worktrees em uso por sessões de agente (~8x numa sessão em 15/09) — o
-// detector de processo ativo não vê agentes sem cwd na worktree. Worktree
-// (.git é arquivo) só entra no lote quando ociosa; clone normal continua elegível.
 @Test func linkedWorktreesAreDetected() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     let worktree = root.appending(path: "worktree")
@@ -660,10 +652,6 @@ import Testing
     #expect(!CleanupPolicy.isLinkedWorktree(root.appending(path: "missing").path))
 }
 
-// REGRESSÃO (02/10/2026): pular TODA worktree deixou 55 GB de node_modules de
-// trabalho já terminado acumularem até 97,6% do SSD — o terminal do agente fica
-// aberto por dias, mas a worktree em si estava parada. Ociosa >= 4h (ou 1h com
-// upstream apagado) entra no lote; atividade recente ou desconhecida, não.
 @Test func idleWorktreesBecomeEligibleButActiveOnesStayProtected() {
     let now = Date(timeIntervalSince1970: 1_000_000)
     #expect(CleanupPolicy.worktreeIdleThreshold == 4 * 3_600)
@@ -677,9 +665,6 @@ import Testing
     #expect(!CleanupPolicy.isWorktreeIdle(lastActivity: now.addingTimeInterval(60), now: now, upstreamGone: false))
 }
 
-// REGRESSÃO (13/10/2026): limitar a limpeza a node_modules/.next deixou 43 GB
-// de checkouts limpos e encerrados ocupando o SSD, enquanto o uso ficou em 92%.
-// A worktree inteira só é recuperável após 24 h, com branch, limpa e sem processo.
 @Test func onlyCleanInactiveBranchedWorktreesBecomeReclaimable() {
     let now = Date(timeIntervalSince1970: 1_000_000)
     let old = now.addingTimeInterval(-CleanupPolicy.reclaimableWorktreeIdleThreshold)
@@ -742,8 +727,6 @@ import Testing
     #expect(SafeCleaner.containsTrackedProtectedPath(in: root))
 }
 
-// REGRESSÃO (06/09/2026): apagar o node_modules real de uma worktree quebrou a
-// irmã cujo node_modules era symlink para ele.
 @Test func symlinkReferencesOnlyProtectActiveOrNonIdleWorktrees() {
     let target = "/Users/x/Projects/.worktrees/a/node_modules"
     let references = [ArtifactSymlinkReference(
@@ -776,8 +759,6 @@ import Testing
     ))
 }
 
-// REGRESSÃO (02/10/2026): acima de 80% o cooldown fixo de 15s ignorava "sem
-// progresso" e o app rodou 195 varreduras seguidas com removidos=0.
 @Test func noProgressBacksOffEvenAtHardLimit() {
     let now = Date(timeIntervalSince1970: 100_000)
     #expect(StoragePolicy.cleanupCooldown(for: 0.95, lastCleanupMadeProgress: false, noProgressStreak: 1) == 300)
@@ -849,10 +830,6 @@ import Testing
     ))
 }
 
-// REGRESSÃO (02/10/2026): ~/.codex/worktrees e ~/.worktrees ficavam fora da
-// varredura (pasta oculta / ~/.codex protegido) e acumularam dezenas de GB de
-// node_modules de worktrees de agente. Só a subárvore de worktrees é liberada;
-// o resto do ~/.codex continua protegido.
 @Test func agentWorktreeFoldersAreScannedButCodexStaysProtected() {
     let home = "/Users/example"
     let roots = CleanupPolicy.artifactScanRoots(homePath: home)

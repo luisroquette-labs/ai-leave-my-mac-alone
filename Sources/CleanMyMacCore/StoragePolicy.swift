@@ -73,8 +73,6 @@ public enum StoragePolicy {
         lastCleanupMadeProgress: Bool = true,
         noProgressStreak: Int = 1
     ) -> TimeInterval {
-        // Sem progresso vence o limite rígido: repetir uma varredura que não acha
-        // nada só ocupa I/O (195 rodadas inúteis em 02/10/2026).
         if !lastCleanupMadeProgress {
             let doublings = Double(min(max(noProgressStreak, 1), 8) - 1)
             return min(noProgressCleanupCooldown * pow(2, doublings), maximumNoProgressCleanupCooldown)

@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Régua fina com marcas nos limiares reais de política do app (StoragePolicy/MemoryPolicy) —
-/// o ponto exato em que a automação dispara fica visível na barra, não só em texto ao lado.
 struct ThresholdGauge: View {
     let value: Double
     let thresholds: [Double]
@@ -15,8 +13,6 @@ struct ThresholdGauge: View {
         GeometryReader { geometry in
             let width = geometry.size.width
             ZStack(alignment: .topLeading) {
-                // Marcas ficam acima da barra, num fundo neutro — nunca em cima do
-                // preenchimento colorido, senão desaparecem contra a própria cor do estado.
                 ForEach(thresholds, id: \.self) { threshold in
                     Capsule()
                         .fill(.secondary.opacity(0.7))

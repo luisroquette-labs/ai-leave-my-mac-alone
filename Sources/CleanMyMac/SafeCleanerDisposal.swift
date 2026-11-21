@@ -1,8 +1,6 @@
 import CleanMyMacCore
 import Foundation
 
-// Descarte recuperável dos artefatos aprovados: lote na Lixeira, exclusão exata
-// do lote ou backup externo verificado por SHA-256 antes de remover o original.
 extension SafeCleaner {
     struct DisposalSession {
         private static let pendingDeleteBatchKey = "pendingDeleteBatchPath"
