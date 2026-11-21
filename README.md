@@ -1,256 +1,278 @@
 <p align="center">
-  <img src="docs/img/app-icon.png" width="92" height="92" alt="Ícone do AI, Leave My Mac Alone!">
+  <img src="docs/img/app-icon.png" width="92" height="92" alt="AI, Leave My Mac Alone! icon">
 </p>
 
 <h1 align="center">AI, Leave My Mac Alone!</h1>
 
 <p align="center">
-  <strong>Proteção autônoma de SSD para quem constrói com IA.</strong><br>
-  Feito para o rastro técnico deixado por Codex, Claude Code e agentes de programação.
+  <strong>Autonomous SSD protection for people building with AI.</strong><br>
+  Built for the technical residue left by Codex, Claude Code, and coding agents.
 </p>
 
 <p align="center">
-  <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/BAIXAR-PARA%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Baixar AI, Leave My Mac Alone!"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.3.1"><img src="https://img.shields.io/badge/VERSÃO-2.3.1-201C19?style=for-the-badge" alt="Versão 2.3.1"></a>
-  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="Status do CI"></a>
+  <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="https://img.shields.io/badge/DOWNLOAD-FOR%20MAC-F28C38?style=for-the-badge&logo=apple&logoColor=white" alt="Download AI, Leave My Mac Alone!"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/releases/tag/v2.3.1"><img src="https://img.shields.io/badge/VERSION-2.3.1-201C19?style=for-the-badge" alt="Version 2.3.1"></a>
+  <a href="https://github.com/luisroquette-labs/ai-leave-my-mac-alone/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luisroquette-labs/ai-leave-my-mac-alone/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status"></a>
 </p>
 
 <p align="center">
-  <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="docs/img/og-card.png" alt="AI, Leave My Mac Alone! protegendo o SSD de resíduos gerados por agentes de IA"></a>
+  <a href="https://luisroquette-labs.github.io/ai-leave-my-mac-alone/"><img src="docs/img/og-card.png" alt="AI, Leave My Mac Alone! protecting an SSD from residue left by AI coding agents"></a>
 </p>
 
-## Sua IA termina a tarefa. Os gigabytes ficam.
+## Your AI finishes the task. The gigabytes stay.
 
-Agentes trabalham em paralelo, criam worktrees, instalam dependências e repetem
-builds. Depois da entrega, `node_modules`, `.next` e caches de ferramentas
-continuam ocupando o SSD. O problema costuma aparecer tarde: a próxima build
-falha, uma atualização para ou o macOS fica sem espaço de trabalho.
+Agents work in parallel, create worktrees, install dependencies, and repeat builds. After the delivery, `node_modules`, `.next`, and tool caches still occupy the SSD. The failure shows up late: the next build breaks, an update stops, or macOS runs out of working space.
 
-AI, Leave My Mac Alone! monitora o volume de dados a cada 30 segundos e acelera para 5
-segundos sob pressão, sem interromper o fluxo:
+AI, Leave My Mac Alone! samples the data volume every 30 seconds and speeds up to 5 seconds under pressure, without interrupting the session.
 
-| 75% | 78% | 80% | 95% |
-|:---:|:---:|:---:|:---:|
-| **Alerta** | **Limpeza autônoma** | **Limite protegido** | **Pressão crítica** |
-| Um aviso claro | Lista segura | Retry a cada 5 min | Proteções continuam ativas |
+## What the percentages actually do
 
-<p align="center">
-  <img src="docs/img/readme-storage-control.png" alt="Modelo de decisão do AI, Leave My Mac Alone! em 95% de uso do SSD">
-</p>
+The menu shows `usedPercent`, which is the raw fraction rounded to the nearest integer. Warning, cleanup, the monitoring interval, and the hard-limit cooldown all use that same rounded number.
 
-## Uma categoria feita para fluxos com IA
+| Rounded disk use | What v2.3.1 does |
+|:---:|---|
+| **Below 75%** | Watch. Sample every 30 seconds. A warning latch resets once use falls below 73%. |
+| **75–77%** | One warning. Sample every 5 seconds. No cleanup yet. |
+| **78–79%** | Automatic cleanup, if it is on, at the level you authorized. After a round that frees at least 100 MB, wait 60 seconds. |
+| **80% and above** | The ceiling. The same cleanup continues. After a round that frees at least 100 MB, wait 5 minutes. Native tool caches are added only when use is still at or above 80% after the safe artifacts. The menu reports the bytes still required. |
 
-CCleaner e utilitários genéricos fazem manutenção ampla do sistema. AI, Leave My Mac Alone!
-entende projetos de software: Git, worktrees, processos ativos, builds e caches
-regeneráveis. O foco não é “limpar o Mac”; é impedir que agentes de código
-consumam silenciosamente todo o SSD.
+A round that frees under 100 MB backs off for 5, then 10, then 20, then 30 minutes. That backoff applies from 78% upward, including above 80%.
 
-- **Autônomo:** inicia com a sessão e verifica o disco a cada 5 segundos acima de 75%.
-- **Três níveis:** Seguro, Profundo e Emergência podem ser executados agora ou autorizados para automação.
-- **Local:** nenhum dado, caminho ou evento sai do computador.
-- **Auditável:** código, regras e log de cada execução são públicos ou locais.
+Memory is a separate gauge:
 
-## Como a decisão funciona
+| Swap | What the app does |
+|:---:|---|
+| **Below 75%** | Normal. |
+| **75% and above** | Warning on the memory gauge. |
+| **90% and above, and free RAM under 300 MB** | Automatic memory relief, if it is on, then a 60 second cooldown. |
+
+`StoragePolicy.emergencyThreshold` is `0.95` and a test pins that constant. No production path reads it. Crossing 95% disk does not change the level, the cooldown, or which files can be removed. **Emergency is a cleanup level you authorize, not a disk percentage.** Older GitHub About text and the previous demo video said the disk warns at 90% and cleans at 95%. That description does not match the code. Replacement About text is in [`docs/RELEASE_NOTES_NEXT.md`](docs/RELEASE_NOTES_NEXT.md).
 
 ```mermaid
 flowchart LR
-    A[Monitor local\n30 s normal / 5 s sob pressão] --> B{Uso do SSD}
-    B -->|abaixo de 75%| C[Observar]
-    B -->|75%| D[Alertar]
-    B -->|78% ou mais| E[Mapear artefatos]
-    E --> F{Git ignorado,\nregenerável e inativo?}
-    F -->|não| G[Preservar e registrar]
-    F -->|sim| H[Remover e verificar]
-    B -->|80% ou mais| I[Retry automático\ncom backoff inteligente]
+    A[Local monitor\n30 s normal / 5 s under pressure] --> B{SSD use}
+    B -->|below 75%| C[Watch]
+    B -->|75%| D[Warn once]
+    B -->|78% or more| E[Map artifacts]
+    E --> F{Git-ignored,\nregenerable, and idle?}
+    F -->|no| G[Keep and log]
+    F -->|yes| H[Remove and verify]
+    B -->|80% or more| I[Retry\n5 min after progress]
     I --> E
 ```
 
-O percentual usado pela política é o mesmo número arredondado mostrado na
-interface. Se o aplicativo exibe **80%**, o retry de proteção já está ativo.
+If the menu shows **80%**, the ceiling retry is already active.
 
-## Contrato de segurança
+## A category for AI workflows
 
-| Pode remover | Nunca remove |
+CCleaner and generic utilities do broad system maintenance. AI, Leave My Mac Alone! understands software projects: Git, worktrees, running processes, builds, and regenerable caches. The point is not to “clean the Mac”. It is to stop coding agents from quietly filling the SSD.
+
+- **Autonomous:** starts with the session and checks the disk every 5 seconds from 75% up.
+- **Three levels:** Safe, Deep, and Emergency can run now, or be authorized for automation.
+- **Local:** no data, path, or event leaves the computer.
+- **Auditable:** the code, the rules, and the log of each run are public or local.
+
+## Safety contract
+
+| May remove | Never removes |
 |---|---|
-| Caches de npm, Bun, Deno e Homebrew | Documentos, Mesa, Downloads e mídia pessoal |
-| Builds Xcode e caches npm/Deno reconhecíveis com mais de 24 h em `/private/tmp` | Perfis de navegador, sessões atuais Claude/Codex e temporários desconhecidos |
-| `node_modules`, `.next`, `.build`, `.turbo`, `.venv`, `DerivedData` e `dist` com 100 MB ou mais | Worktrees sujas, ativas, recentes, sem branch ou com ignorados desconhecidos |
-| Artefatos ignorados dentro de um repositório Git | Projetos usados por qualquer processo do utilizador |
-| Somente após verificar Git e processos novamente | Lixeira, Docker, credenciais e discos externos não selecionados |
-| No nível Emergência autorizado: arquivos do Codex arquivados há 7 dias e bundles de VM do Claude sem arquivos abertos | Histórico recente do Codex e qualquer alvo em uso ou não verificável |
+| npm, Bun, Deno, and Homebrew caches | Documents, Desktop, Downloads, and personal media |
+| Xcode builds and recognizable npm/Deno caches older than 24 h in `/private/tmp` | Browser profiles, current Claude/Codex sessions, and unknown temporary files |
+| `node_modules`, `.next`, `.build`, `.turbo`, `.venv`, `DerivedData`, and `dist` of 100 MB or more | Dirty, active, recent, branchless, or unknown-ignore worktrees |
+| Git-ignored artifacts inside a Git repository | Projects used by any user process |
+| Only after Git and processes are checked again | Trash, Docker, credentials, and external disks you did not select |
+| At an authorized Emergency level: Codex files archived for 7 days, and Claude VM bundles with no open files | Recent Codex history and any target in use or not verifiable |
 
-A inspeção de processos falha de forma fechada: se o macOS não permitir
-confirmar que um projeto está inativo, o alvo é preservado. O Git é comparado
-antes e depois da remoção. Falhas e recriações entram no resultado da execução.
+Process inspection fails closed: if macOS cannot confirm that a project is idle, the target stays. Git is compared before and after removal. Failures and recreations are part of the run result.
 
-> O teto de 80% é **best-effort**, mas nunca é tratado como concluído enquanto o
-> disco continuar acima dele. O aplicativo respeita o maior nível automático autorizado,
-> amplia a tentativa apenas dentro dessa permissão e informa quantos bytes ainda faltam
-> liberar. As novas tentativas usam backoff de 5 a 30 minutos; dados pessoais e projetos
-> ativos continuam protegidos.
+> The 80% ceiling is **best-effort**. It is not treated as done while the disk stays above it. The app respects the highest automatic level you authorized, widens the attempt only inside that permission, and reports how many bytes are still required. Retries back off from 5 to 30 minutes. Personal data and active projects stay protected.
 
-## Níveis de limpeza e permissões
+## Cleanup levels and permission
 
-| Nível | Manual | Automático autorizado | Escopo adicional |
+| Level | Manual | Authorized automation | Extra scope |
 |---|---|---|---|
-| **Seguro** | Botão próprio | Padrão | Caches e builds regeneráveis verificados |
-| **Profundo** | Botão próprio | Escolha persistente | Worktrees inativas e temporários reconhecíveis |
-| **Emergência** | Confirmação explícita | Autorização persistente separada | Arquivos do Codex arquivados há 7 dias e bundles de VM do Claude sem arquivos abertos |
+| **Safe** | Its own button | Default | Checked regenerable caches and builds |
+| **Deep** | Its own button | Persistent choice | Inactive worktrees and recognizable temporary files |
+| **Emergency** | Explicit confirmation | A separate persistent authorization | Codex files archived for 7 days, and Claude VM bundles with no open files |
 
-O nível automático é um teto: selecionar Seguro impede escalada silenciosa para
-Profundo ou Emergência. Todo descarte continua usando um lote exato e auditável.
+The automatic level is a ceiling: choosing Safe blocks a silent jump to Deep or Emergency. Every disposal still uses one exact, auditable batch.
 
-## Alívio de memória no Chrome
+## Chrome memory relief
 
-Em **Preferências → Chrome**, clique **Mostrar pasta da extensão…**. Na página
-`chrome://extensions`, ative **Modo do desenvolvedor** e escolha **Carregar sem
-compactação** na pasta `ChromeExtension` mostrada pelo Finder. A instalação é
-necessária uma vez por perfil do Chrome.
+In **Settings → Chrome**, click **Show extension folder…**. On `chrome://extensions`, turn on **Developer mode** and choose **Load unpacked** for the `ChromeExtension` folder Finder reveals. Installation is once per Chrome profile. The extension’s default language is English; Chrome shows Portuguese when that is the browser language.
 
-Com menos de 2 GB de RAM disponíveis, a extensão pede ao Chrome que descarte
-até 8 abas de baixa prioridade a cada 30 segundos. O Chrome permanece aberto e
-as abas continuam visíveis, mas recarregam ao serem selecionadas; conteúdo não
-salvo nelas pode se perder. A extensão não lê o conteúdo das páginas nem envia
-dados pela rede. O alívio de builds órfãos no app continua independente.
+With less than 2 GB of RAM free, the extension asks Chrome to discard up to 8 low-priority tabs every 30 seconds. Chrome stays open and the tabs stay listed, but they reload when selected; unsaved content in them can be lost. The extension does not read page content and does not send data over the network. Orphan-build relief inside the app stays independent.
 
-## Destino da limpeza
+## Where cleaned files go
 
-Abra **Mais opções → Preferências** e escolha:
+Open **More options → Settings** and choose:
 
-| Destino | Comportamento |
+| Destination | Behavior |
 |---|---|
-| **Mover para a Lixeira** | Mantém o lote recuperável; o espaço só retorna quando a Lixeira for esvaziada |
-| **Lixeira + apagar o lote do app** | Apaga somente o novo lote do AI, Leave My Mac Alone!; itens antigos da Lixeira ficam intocados |
-| **Backup em HD externo + apagar do Mac** | Copia e valida cada artefato; depois move o original para um lote exclusivo e apaga somente esse lote |
+| **Move to the Trash** | Keeps the batch recoverable. Space returns when you empty the Trash. |
+| **Trash, then delete only this app's batch** | Deletes only the new batch from AI, Leave My Mac Alone!. Older Trash items stay. |
+| **Back up to an external drive, then delete from the Mac** | Copies and validates every artifact, moves the original into an exclusive batch, and deletes only that batch. |
 
-O backup externo aceita somente uma pasta gravável em um volume não interno. Se
-o disco for desconectado, estiver cheio, a cópia divergir ou a exclusão falhar,
-o original permanece recuperável e a execução falha de forma fechada.
+The external backup accepts only a writable folder on a volume that is not internal. If the disk is disconnected, full, the copy differs, or the delete fails, the original stays recoverable and the run fails closed.
 
-## O que mudou na v2.3.1
+## How much space it has freed
 
-- O alerta crítico não aparece mais quando o percentual arredondado mostra 80%, mas o cálculo exato confirma que o SSD já está abaixo do teto.
+Each finished run appends a line like `END liberados=<bytes>` to the local log. `liberados` is the increase in free bytes on the data volume during that run, not a sum of file sizes. Trash-only runs often record `0` because the space comes back when the Trash is emptied. If other writes filled the disk during the run, that run also records `0`.
 
-## O que mudou na v2.3.0
+From a checkout:
 
-- Três botões independentes executam limpeza Segura, Profunda ou de Emergência.
-- O utilizador escolhe o maior nível permitido para automação; Emergência exige autorização específica e persistente.
-- O nível Emergência retém sete dias de arquivos do Codex, remove apenas bundles regeneráveis do Claude sem arquivos abertos e continua bloqueando sessões atuais, projetos e dados pessoais.
+```bash
+./Scripts/report-freed.sh
+```
 
-## O que mudou na v2.2.1
+On the Mac that already runs the app, paste this in Terminal. It does not need a checkout:
 
-- Uma varredura completa de worktrees que não encontra nada deixa de ser repetida por uma hora; as rodadas seguintes atacam diretamente artefatos e caches regeneráveis.
-- O app só conta progresso quando o espaço livre realmente aumenta pelo menos 100 MB, mesmo se escritores concorrentes recriarem o que acabou de ser removido.
-- Quando a limpeza não consegue proteger o teto de 80%, o menu e um alerta nativo informam explicitamente o déficit; o alerta funciona mesmo quando o macOS recusa notificações para a assinatura ad-hoc.
+```bash
+log_dir="${HOME}/Library/Logs/CleanMyMac"
+files=()
+[[ -f "$log_dir/clean-my-mac.log" ]] && files+=("$log_dir/clean-my-mac.log")
+[[ -f "$log_dir/clean-my-mac.previous.log" ]] && files+=("$log_dir/clean-my-mac.previous.log")
+if (( ${#files[@]} == 0 )); then
+  printf 'No cleanup log yet at %s/clean-my-mac.log\n' "$log_dir"
+else
+  awk '
+    /END liberados=/ {
+      if (match($0, /liberados=[0-9]+/)) {
+        bytes = substr($0, RSTART + 10, RLENGTH - 10) + 0
+        total += bytes
+        runs++
+        if (bytes > 0) positive++
+      }
+    }
+    END {
+      printf "Completed runs: %d\n", runs + 0
+      printf "Runs that increased free space: %d\n", positive + 0
+      printf "Free space gained: %.2f GB\n", (total + 0) / 1000000000
+      printf "Free space gained: %.2f GiB\n", (total + 0) / 1073741824
+    }
+  ' "${files[@]}"
+fi
+```
 
-## O que mudou na v2.2.0
+The directory in that command is a stable internal path. Renaming it would split the history. Only the current log and one rotated previous log are kept (rotation at 5 MB), so the total is not a lifetime counter beyond those two files.
 
-- A extensão opcional do Chrome libera memória de abas inativas quando restam menos de 2 GB de RAM. O navegador e as abas permanecem abertos; as abas descartadas recarregam ao voltar.
-- A instalação da extensão fica acessível nas Preferências do app e requer uma ativação por perfil do Chrome.
+## What changed in v2.3.1
 
-## O que mudou na v2.1.5
+- The critical alert no longer appears when the rounded percent shows 80% but the exact byte math says the SSD is already under the ceiling.
 
-- O cooldown de caches agora vale por caminho: um cache recém-reconstruído fica protegido por 6 horas, mas outros caches seguros continuam disponíveis para restaurar o teto de 80%; recursos de último nível entram um por rodada, com nova medição entre eles.
-- Projetos ativos em `~/.cache/codex` são bloqueados, caminhos atravessados por symlink são rejeitados e uma falha ao finalizar um lote interrompe as camadas destrutivas seguintes.
-- A segunda varredura redundante de worktrees foi removida; cada rodada faz uma única seleção protegida por estado Git e processos ativos.
-- A limpeza preventiva aos 78% volta a executar de verdade, para quando recupera o déficit calculado e só usa caches nativos se ainda estiver acima de 80%; lotes interrompidos são retomados com validação estrita.
-- O alívio de memória não mata mais um build jovem só por ultrapassar 1 GB: fora a telemetria descartável, apenas processos realmente órfãos (`PPID 1`) e antigos são elegíveis.
+## What changed in v2.3.0
 
-## O que mudou na v2.1.4
+- Three separate buttons run Safe, Deep, or Emergency cleanup.
+- You choose the highest level automation may use. Emergency requires its own persistent authorization.
+- Emergency keeps seven days of Codex files, removes only regenerable Claude bundles with no open files, and still blocks current sessions, projects, and personal data.
 
-- A limpeza avança por uma allowlist exata de caches regeneráveis de desenvolvimento e navegador quando os artefatos seguros não bastam, com margem de 2 GB contra diferenças entre tamanho estimado e espaço efetivamente recuperado.
-- Perfis, sessões, credenciais, `.env`, Graphify e `Warning/Default` continuam fora do alcance.
+## What changed in v2.2.1
 
-## O que mudou na v2.1.3
+- A full worktree scan that finds nothing is not repeated for an hour. Later rounds go straight at regenerable artifacts and caches.
+- The app counts progress only when free space actually grows by at least 100 MB, even if concurrent writers recreate what was just removed.
+- When cleanup cannot protect the 80% ceiling, the menu and a native alert state the shortfall. The alert still works when macOS refuses notifications for an ad-hoc signature.
 
-- Worktrees limpas com metadados gerados por TypeScript, Next.js, SWC e testes deixam de ser preservadas por engano, permitindo perseguir o teto de 80% sem apagar `.env`, `.vercel`, Graphify, saídas de agentes ou trabalho ativo.
+## What changed in v2.2.0
 
-## O que mudou na v2.1.2
+- The optional Chrome extension frees memory from inactive tabs when less than 2 GB of RAM remains. The browser and the tabs stay open; discarded tabs reload when you return.
+- Extension installation is available in the app’s Settings and requires one activation per Chrome profile.
 
-- Sob pressão de 80% ou mais, worktrees inteiras podem ser recuperadas somente quando têm branch preservada no Git, estão limpas, inativas há 24 horas, sem processo ativo e contêm apenas ignorados regeneráveis conhecidos.
-- A busca cobre também contêineres `*-worktrees` e `.worktrees` dentro dos projetos, atacando o acúmulo real de dezenas de GB que a limpeza limitada a `node_modules`/`.next` não alcançava.
-- Builds Swift/Xcode, Turbo, ambientes virtuais e `dist` ignorados entram na política segura; npm/npx, uv e pnpm usam os próprios comandos oficiais de poda.
-- `.env`, Graphify local, caminhos `Warning/Default`, worktrees sujas/ativas/recentes e sessões Claude/Codex continuam bloqueados.
+## What changed in v2.1.5
 
-## O que mudou na v2.1.1
+- Cache cooldown is per path: a cache that was just rebuilt stays protected for 6 hours, while other safe caches remain available to restore the 80% ceiling. Last-resort resources enter one per round, with a fresh measurement between them.
+- Active projects under `~/.cache/codex` are blocked, symlink-traversed paths are rejected, and a failure while finishing a batch stops the later destructive layers.
+- The second redundant worktree scan was removed. Each round does one selection guarded by Git state and running processes.
+- Preventive cleanup at 78% runs again, stops when it recovers the calculated shortfall, and uses native caches only while still above 80%. Interrupted batches resume with strict validation.
+- Memory relief no longer kills a young build only because it passed 1 GB. Aside from disposable telemetry, only real orphans (`PPID 1`) that are also old are eligible.
 
-- A limpeza de emergência agora tenta chegar abaixo de 80% em uma única rodada, avançando por todos os artefatos seguros disponíveis e informando claramente quando o alvo não pode ser atingido sem tocar dados protegidos.
-- O resultado da limpeza permanece visível após a atualização das métricas; a interface não substitui mais “quanto foi liberado” por uma simples leitura de disco.
-- A verificação de worktrees não atualiza mais o índice do Git durante a inspeção, evitando que o próprio aplicativo faça uma worktree ociosa parecer ativa.
-- A confirmação de limpeza profunda ficou explícita e separada da limpeza normal.
+## What changed in v2.1.4
 
-## O que mudou na v2.1.0
+- Cleanup advances through an exact allowlist of regenerable development and browser caches when safe artifacts are not enough, with a 2 GB margin against the gap between estimated size and space actually recovered.
+- Profiles, sessions, credentials, `.env`, Graphify, and `Warning/Default` stay out of reach.
 
-- Worktrees do Git voltam a ser limpas quando ociosas: sem atividade na própria worktree há 4 horas (1 hora se a branch já foi apagada no remoto). O terminal do agente pode seguir aberto por dias — vale o que acontece dentro da worktree. Antes, toda worktree era pulada e 55 GB de `node_modules` de trabalho terminado levaram o SSD a 97,6% (02/10/2026).
-- A varredura passa a cobrir `~/.worktrees` e `~/.codex/worktrees`; o resto de `~/.codex` continua protegido.
-- Artefato que outra worktree usa via symlink nunca é removido.
-- Rodada sem progresso dobra a espera da próxima (5 → 10 → 20 → 30 min), mesmo acima de 80% — fim das varreduras repetidas a cada 15 segundos sem liberar nada.
+## What changed in v2.1.3
 
-## O que mudou na v2.0.1
+- Clean worktrees whose only extra metadata comes from TypeScript, Next.js, SWC, and tests are no longer preserved by mistake, so the 80% ceiling can be pursued without deleting `.env`, `.vercel`, Graphify, agent output, or active work.
 
-- O alívio de memória agora enxerga órfãos paginados pro swap: alvo de build/dev com 2h+ de uptime é encerrado mesmo com RSS baixo (antes, o filtro de 1GB ficava cego exatamente sob pressão de swap — incidente real de 14/09/2026 com swap a 96% e 1.278 disparos sem efeito).
-- Órfãos de telemetria do Next.js (`detached-flush.js`) são encerrados sempre.
-- VM Docker (colima) ociosa é desligada com `colima stop` gracioso — apenas com `docker ps` comprovadamente vazio; com container ativo, permanece ligada.
-- Decisão de alvo extraída para política pura no Core, coberta por testes de regressão do incidente.
+## What changed in v2.1.2
 
-## O que mudou na v2.0.0
+- At 80% or above, a whole worktree can be recovered only when its branch is preserved in Git, it is clean, idle for 24 hours, has no running process, and contains only known regenerable ignores.
+- The search also covers `*-worktrees` containers and `.worktrees` inside projects, which is where tens of gigabytes accumulated beyond `node_modules` / `.next`.
+- Ignored Swift/Xcode builds, Turbo, virtual environments, and `dist` join the safe policy. npm/npx, uv, and pnpm use their own official prune commands.
+- `.env`, local Graphify, `Warning/Default` paths, dirty/active/recent worktrees, and Claude/Codex sessions stay blocked.
 
-- Renomeado de "Clean My Mac" para "AI, Leave My Mac Alone!" — identificador de pacote, log e módulos internos permanecem estáveis para não perder configurações já concedidas no macOS.
-- Novo alívio automático e manual de memória: encerra builds Next.js/tsc/webpack/vite/turbo/vitest órfãos que estouram RAM/swap, com a mesma blindagem de segurança da limpeza de disco (nunca toca processos fora da lista de alvos).
-- Painel redesenhado: régua com marcas nos limiares reais de política (75/78/80% disco, 75/90% swap) em vez de texto solto, números monoespaçados e seções com fio em vez de cards genéricos.
+## What changed in v2.1.1
 
-## O que mudou na v1.2.5
+- Emergency cleanup tries to get under 80% in a single round, walking every available safe artifact, and says clearly when the target cannot be reached without touching protected data.
+- The cleanup result stays visible after metrics refresh. The interface no longer replaces “how much was freed” with a plain disk reading.
+- Worktree verification no longer updates the Git index during inspection, so the app itself does not make an idle worktree look active.
+- Deep-cleanup confirmation is explicit and separate from normal cleanup.
 
-- Acima de 80%, a limpeza volta a tentar a cada 15 segundos mesmo quando a rodada anterior não liberou espaço.
-- Se os artefatos não bastarem, a mesma rodada avança para os caches nativos; o Bun usa um diretório controlado e falhas entram no resultado.
-- `.next` e `node_modules` inativos em worktrees de projeto dentro de `.claude` entram na lista segura; `~/.claude` continua protegido.
+## What changed in v2.1.0
 
-## Instalação
+- Idle Git worktrees are cleaned again: no commit, checkout, stage, or file change inside the worktree for 4 hours (1 hour if the branch was already deleted on the remote). An agent terminal can stay open for days. What matters is activity inside the worktree. Before this, every worktree was skipped and 55 GB of finished-work `node_modules` pushed the SSD to 97.6% (2026-10-02).
+- The scan covers `~/.worktrees` and `~/.codex/worktrees`. The rest of `~/.codex` stays protected.
+- An artifact another worktree uses through a symlink is never removed.
+- A round with no progress doubles the next wait (5 → 10 → 20 → 30 min), even above 80%. That ended the repeated scans every 15 seconds that freed nothing.
 
-1. Abra a [página oficial de download](https://luisroquette-labs.github.io/ai-leave-my-mac-alone/#download).
-2. Preencha nome, WhatsApp e e-mail para liberar o ZIP gratuito.
-3. Mova **AI, Leave My Mac Alone!.app** para `Aplicativos`.
-4. Na primeira execução, rode:
+## What changed in v2.0.1
+
+- Memory relief now sees orphans that were paged out to swap: a build/dev target with 2h+ of uptime is quit even with low RSS. The old 1 GB filter went blind exactly under swap pressure — a real incident on 2026-09-14 with swap at 96% and 1,278 triggers that did nothing.
+- Next.js telemetry orphans (`detached-flush.js`) are always quit.
+- An idle Docker VM (colima) is stopped with a graceful `colima stop`, and only when `docker ps` is provably empty. A running container keeps the VM up.
+- The extra-target decision lives in pure Core policy, covered by regression tests from that incident.
+
+## What changed in v2.0.0
+
+- Public name set to AI, Leave My Mac Alone!. The bundle identifier, the log directory, and the internal modules stayed the same so macOS permissions already granted are kept.
+- New automatic and manual memory relief: quits orphan Next.js/tsc/webpack/vite/turbo/vitest builds that exhaust RAM or swap, with the same safety boundary as disk cleanup.
+- Redesigned panel: a gauge marked at the real policy thresholds (75/78/80% disk, 75/90% swap), monospaced numbers, and ruled sections.
+
+## What changed in v1.2.5
+
+- Above 80%, cleanup tried again every 15 seconds even when the previous round freed nothing. Later versions replaced that fixed retry with the backoff described above.
+- If artifacts are not enough, the same round moves on to native caches. Bun uses a controlled directory, and failures enter the result.
+- Inactive `.next` and `node_modules` in project worktrees inside `.claude` join the safe list. `~/.claude` itself stays protected.
+
+## Install
+
+1. Open the [official download page](https://luisroquette-labs.github.io/ai-leave-my-mac-alone/#download).
+2. Enter your name, WhatsApp, and email to unlock the free ZIP.
+3. Move **AI, Leave My Mac Alone!.app** to `Applications`.
+4. On the first launch of an ad-hoc build, run:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/AI, Leave My Mac Alone!.app"
 open "/Applications/AI, Leave My Mac Alone!.app"
 ```
 
-O build atual requer **macOS 14+**, processador **Apple silicon** e usa assinatura
-ad-hoc. Ainda não há notarização Apple.
+The current build requires **macOS 14+**, an **Apple silicon** Mac, and uses an ad-hoc signature. It is not notarized yet. The exact Developer ID, `notarytool`, and `stapler` commands are in [`docs/SIGNING.md`](docs/SIGNING.md). After a stapled notarized build, the `xattr` command is unnecessary.
 
-## Uso
+The menu follows the Mac language. English is the default. Portuguese is used when it appears ahead of English in the language list. The website has the same choice: English first, PT on the language control or `?lang=pt`.
 
-1. Procure o ícone de disco na barra superior do macOS, perto do Wi-Fi e relógio.
-2. Mantenha **Limpeza automática** ativada.
-3. Mantenha **Abrir ao iniciar sessão** ativado.
-4. Use **Verificar agora** ou **Limpar agora** para uma execução imediata.
+## Use
 
-O log fica em:
+1. Find the disk icon in the macOS menu bar, near Wi-Fi and the clock.
+2. Keep **Automatic cleanup** on.
+3. Keep **Open at login** on.
+4. Use **Check now** or **Clean now** for an immediate run.
 
-```text
-~/Library/Logs/CleanMyMac/clean-my-mac.log
-```
+The log path is printed by `./Scripts/report-freed.sh`.
 
-[Assistir à demonstração real de 12 segundos](docs/video/clean-my-mac-demo.mp4)
+## Small native architecture
 
-## Arquitetura pequena e nativa
-
-| Componente | Responsabilidade |
+| Component | Responsibility |
 |---|---|
-| `StorageMonitor` | Amostragem, notificações, login e orquestração |
-| `StoragePolicy` | Limites, cooldown normal e retry emergencial |
-| `SafeCleaner` | Candidatos, processos, Git, remoção e auditoria |
-| `MenuBarView` | Interface SwiftUI na barra do macOS |
+| `StorageMonitor` | Sampling, notifications, login, and orchestration |
+| `StoragePolicy` | Thresholds, the normal cooldown, and the ceiling retry |
+| `SafeCleaner` | Candidates, processes, Git, removal, and the audit log |
+| `MenuBarView` | SwiftUI interface in the macOS menu bar |
 
-Swift 6, SwiftUI, AppKit, ServiceManagement e UserNotifications. Nenhuma
-dependência de runtime, Electron, conta ou serviço de nuvem.
+Swift 6, SwiftUI, AppKit, ServiceManagement, and UserNotifications. No runtime dependency, Electron, account, or cloud service.
 
-Detalhes de separação de módulos e do modelo de segurança em
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Module boundaries and the security model: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## Compilar e verificar
+## Build and verify
 
 ```bash
 git clone https://github.com/luisroquette-labs/ai-leave-my-mac-alone.git
@@ -259,50 +281,39 @@ cd ai-leave-my-mac-alone
 open "dist/AI, Leave My Mac Alone!.app"
 ```
 
-O preflight canônico executa validação do `Info.plist`, testes do modelo web,
-E2E desktop/mobile, testes Swift, build de produção, verificação da versão
-pública e assinatura do aplicativo.
+The canonical preflight checks `Info.plist`, the web model tests, desktop and mobile end-to-end tests, the Swift tests, the release build, the public version, and the app signature. It needs a Mac.
 
-## Escopo de projetos
+## Project scope
 
-A busca de artefatos cobre `~/Projects`, `~/Projetos`, `~/Developer`, `~/Code`,
-as worktrees de agente em `~/.worktrees` e `~/.codex/worktrees` (o resto de `~/.codex`
-continua protegido) e
-pastas diretas da home que contenham `.git` ou `package.json`. Áreas pessoais do
-macOS e caminhos protegidos são excluídos antes da varredura. Worktrees de projeto
-dentro de `.claude` são atravessados somente para encontrar `.next` e `node_modules`
-ignorados pelo Git, grandes e sem processo ativo.
+Artifact search covers `~/Projects`, `~/Projetos`, `~/Developer`, `~/Code`, agent worktrees in `~/.worktrees` and `~/.codex/worktrees` (the rest of `~/.codex` stays protected), and home folders that directly contain `.git` or `package.json`. Personal macOS areas and protected paths are excluded before the scan. Project worktrees inside `.claude` are walked only to find large Git-ignored `.next` and `node_modules` with no running process.
 
-Artefatos de uma worktree do Git só entram na limpeza quando ela está ociosa: sem commit, checkout, stage ou
-arquivo modificado (fora de `node_modules`/`.next`/`.git`) nas últimas 4 horas,
-ou na última hora se o upstream da branch já foi apagado. O terminal do agente
-pode seguir aberto por dias; vale a atividade da própria worktree. Artefato que
-outra worktree usa via symlink nunca é removido. Rodada sem progresso dobra a
-espera da próxima (5 → 10 → 20 → 30 min), mesmo acima de 80%.
+A Git worktree’s artifacts are eligible only when it is idle: no commit, checkout, stage, or modified file (outside `node_modules` / `.next` / `.git`) in the last 4 hours, or in the last hour if the branch upstream was already deleted. An agent terminal can stay open for days. Activity inside the worktree is what counts. An artifact another worktree uses through a symlink is never removed. A round with no progress doubles the next wait (5 → 10 → 20 → 30 min), even above 80%.
 
-Acima de 80%, a worktree inteira só pode entrar no lote exato após 24 horas sem
-atividade, com branch preservada, Git limpo, nenhum processo ativo e apenas
-ignorados regeneráveis reconhecidos. Qualquer `.env`, saída Graphify ou ignorado
-desconhecido preserva a worktree completa.
+Above 80%, a whole worktree can enter the exact batch only after 24 hours without activity, with its branch preserved, a clean Git status, no running process, and only recognized regenerable ignores. Any `.env`, Graphify output, or unknown ignore keeps the whole worktree.
 
-## Privacidade
+## Privacy
 
-Amostras de armazenamento, preferências e logs permanecem no Mac. O aplicativo
-não contém cliente de rede, analytics, telemetria, conta ou backend remoto.
+Storage samples, preferences, and logs stay on the Mac. The app has no network client, analytics, telemetry, account, or remote backend. The download form on the website posts the contact you type to CF Gauss. The installed app does not.
 
-## Limitações conhecidas
+## Known limitations
 
-- O teto de 80% depende da existência de artefatos seguros; enquanto estiver acima,
-  o app continua tentando e mantém o uso o mais próximo possível sem apagar trabalho ativo.
-- O modo Lixeira não devolve espaço ao SSD até o usuário esvaziá-la.
-- Projetos fora das raízes documentadas não são varridos.
-- Caches só são limpos quando a respectiva ferramenta está instalada.
-- O build distribuído é exclusivo para Apple silicon e ainda não é notarizado.
-- A interface atual está em português do Brasil.
+- The 80% ceiling depends on safe artifacts existing. While the disk is above it, the app keeps trying and stays as close as it can without deleting active work.
+- Trash mode does not return space to the SSD until you empty the Trash.
+- Projects outside the documented roots are not scanned.
+- Caches are cleaned only when that tool is installed.
+- The distributed build is Apple silicon only and is not notarized yet.
+- The published 2.3.1 ZIP predates the English menu. The next release notes are drafted in [`docs/RELEASE_NOTES_NEXT.md`](docs/RELEASE_NOTES_NEXT.md) and are not published.
 
-## Projeto aberto
+## Repository description
+
+Paste this over the GitHub About text before the Product Hunt launch. The live About text still says the disk warns at 90% and cleans at 95%.
+
+```text
+Native macOS menu-bar SSD guard for people building with AI. Warns at 75% disk, cleans regenerable developer artifacts at 78%, and keeps trying to get back under the 80% ceiling. Local-first and open source.
+```
+
+## Open source
 
 [MIT](LICENSE) © 2026 [Luis Roquette](https://github.com/luisroquette).
 
-AI, Leave My Mac Alone! é um software independente. Não possui afiliação, patrocínio ou
-endosso da MacPaw. “CleanMyMac” é marca de seu respectivo proprietário.
+AI, Leave My Mac Alone! is independent software. It is not affiliated with, sponsored by, or endorsed by MacPaw.

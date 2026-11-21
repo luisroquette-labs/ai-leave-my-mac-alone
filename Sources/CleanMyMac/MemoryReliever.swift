@@ -11,12 +11,23 @@ struct MemoryReliefResult: Sendable {
         var parts: [String] = []
         if killedProcesses > 0 {
             let freed = ByteCountFormatter.string(fromByteCount: Int64(freedBytes), countStyle: .memory)
-            parts.append("\(killedProcesses) processo(s) de build encerrados, ~\(freed) de RAM liberados.")
+            parts.append(InterfaceCopy.text(
+                "\(killedProcesses) stuck build process(es) quit, about \(freed) of RAM freed.",
+                portuguese: "\(killedProcesses) processo(s) de build encerrados, ~\(freed) de RAM liberados."
+            ))
         }
         if stoppedIdleVM {
-            parts.append("VM Docker (colima) ociosa desligada.")
+            parts.append(InterfaceCopy.text(
+                "Idle Docker VM (colima) stopped.",
+                portuguese: "VM Docker (colima) ociosa desligada."
+            ))
         }
-        guard !parts.isEmpty else { return "Nenhum build travado encontrado; a memória já está saudável." }
+        guard !parts.isEmpty else {
+            return InterfaceCopy.text(
+                "No stuck build found; memory is already healthy.",
+                portuguese: "Nenhum build travado encontrado; a memória já está saudável."
+            )
+        }
         return parts.joined(separator: " ")
     }
 }

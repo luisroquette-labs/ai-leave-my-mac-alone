@@ -14,17 +14,32 @@ struct CleanupResult: Sendable {
         let completed: String
         switch destination {
         case .trash:
-            completed = "\(removedTargets) itens movidos para a Lixeira"
+            completed = InterfaceCopy.text(
+                "\(removedTargets) items moved to the Trash",
+                portuguese: "\(removedTargets) itens movidos para a Lixeira"
+            )
         case .deleteBatch:
-            completed = "\(freed) liberados com segurança"
+            completed = InterfaceCopy.text(
+                "\(freed) freed safely",
+                portuguese: "\(freed) liberados com segurança"
+            )
         case .externalBackup:
-            completed = "\(freed) liberados após backup verificado"
+            completed = InterfaceCopy.text(
+                "\(freed) freed after a verified backup",
+                portuguese: "\(freed) liberados após backup verificado"
+            )
         }
         if failedTargets > 0 {
-            return "\(completed); \(failedTargets) falhas verificadas. Nova tentativa agendada."
+            return InterfaceCopy.text(
+                "\(completed); \(failedTargets) checked failures. Another attempt is scheduled.",
+                portuguese: "\(completed); \(failedTargets) falhas verificadas. Nova tentativa agendada."
+            )
         }
         if blockedTargets > 0 {
-            return "\(completed); \(blockedTargets) projetos ativos preservados."
+            return InterfaceCopy.text(
+                "\(completed); \(blockedTargets) active projects preserved.",
+                portuguese: "\(completed); \(blockedTargets) projetos ativos preservados."
+            )
         }
         return "\(completed)."
     }

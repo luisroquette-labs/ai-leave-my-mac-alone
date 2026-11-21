@@ -10,14 +10,14 @@ cd "$project_dir"
     print -u2 "Native cleanup confirmation breaks inside MenuBarExtra"
     exit 1
 }
-/usr/bin/grep -Fq 'Text("Limpeza em andamento…")' Sources/CleanMyMac/MenuBarView.swift || {
+/usr/bin/grep -Fq 'InterfaceCopy.text("Cleaning in progress…"' Sources/CleanMyMac/MenuBarView.swift || {
     print -u2 "Visible cleanup progress is missing"
     exit 1
 }
 /usr/bin/grep -Fq 'monitor.cleanNow(level: requestedCleanupLevel)' Sources/CleanMyMac/MenuBarView.swift \
-    && /usr/bin/grep -Fq 'Button("Limpar agora")' Sources/CleanMyMac/MenuBarView.swift \
-    && /usr/bin/grep -Fq 'Button("Limpeza Profunda")' Sources/CleanMyMac/MenuBarView.swift \
-    && /usr/bin/grep -Fq 'Button("Limpeza de Emergência")' Sources/CleanMyMac/MenuBarView.swift || {
+    && /usr/bin/grep -Fq 'InterfaceCopy.text("Clean now"' Sources/CleanMyMac/MenuBarView.swift \
+    && /usr/bin/grep -Fq 'InterfaceCopy.text("Deep Clean"' Sources/CleanMyMac/MenuBarView.swift \
+    && /usr/bin/grep -Fq 'InterfaceCopy.text("Emergency Clean"' Sources/CleanMyMac/MenuBarView.swift || {
     print -u2 "Independent safe, deep and emergency cleanup actions are missing"
     exit 1
 }
@@ -28,7 +28,7 @@ cd "$project_dir"
     exit 1
 }
 
-/usr/bin/perl -0ne 'exit !/if isFirstSample \|\| reportResult \{\s+lastAction = "Disco verificado:/s' \
+/usr/bin/perl -0ne 'exit !/if isFirstSample \|\| reportResult \{\s+lastAction = InterfaceCopy\.text\(\s+"Disk checked:/s' \
     Sources/CleanMyMac/StorageMonitor.swift \
     && /usr/bin/grep -Fq 'sampleNow(reportResult: true)' Sources/CleanMyMac/MenuBarView.swift || {
     print -u2 "Routine sampling must not overwrite the last cleanup result"

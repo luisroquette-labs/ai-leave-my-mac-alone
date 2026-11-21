@@ -5,7 +5,14 @@ import vm from 'node:vm';
 const root = new URL('../ChromeExtension/', import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('manifest.json', root), 'utf8'));
 assert.equal(manifest.manifest_version, 3);
+assert.equal(manifest.default_locale, 'en');
+assert.equal(manifest.name, '__MSG_extName__');
 assert.deepEqual(manifest.permissions, ['alarms', 'system.memory', 'tabs']);
+for (const locale of ['en', 'pt_BR']) {
+  const messages = JSON.parse(readFileSync(new URL(`_locales/${locale}/messages.json`, root), 'utf8'));
+  assert.equal(messages.extName.message, 'AI, Leave My Mac Alone! — Chrome');
+  assert.ok(messages.extDescription.message.length > 20);
+}
 
 const script = readFileSync(new URL('background.js', root), 'utf8');
 async function check(availableCapacity, results, expected) {

@@ -29,6 +29,9 @@ public enum StoragePolicy {
     public static let cleanupThreshold = 0.78
     public static let hardLimitPercent: UInt64 = 80
     public static let hardLimit = Double(hardLimitPercent) / 100
+    /// Unused by cleanup, notifications, and cooldown. Crossing 95% of disk
+    /// does not change level or scope. Emergency is a user-authorized cleanup
+    /// level, not a disk percentage. Swap pressure is MemoryPolicy (75% / 90%).
     public static let emergencyThreshold = 0.95
     public static let warningResetThreshold = 0.73
     public static let cleanupCooldown: TimeInterval = 60
