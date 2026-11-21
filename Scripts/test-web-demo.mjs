@@ -20,7 +20,7 @@ const keys = [...html.matchAll(/data-i18n(?:-html)?="([^"]+)"/g)].map(match => m
 assert.ok(keys.length > 40);
 for (const key of keys) assert.ok(pageCopy.pt[key], `missing Portuguese copy: ${key}`);
 assert.equal(html.includes('lang="en"'), true);
-assert.ok(html.includes('v2.3.1 · Apple silicon'));
+assert.ok(html.includes('v2.4.0 · Apple silicon'));
 
 const publicFiles = ['../README.md', '../docs/index.html', '../docs/script.js', '../docs/SIGNING.md', '../docs/RELEASE_NOTES_NEXT.md'];
 const allowedIdentifier = /Library\/Logs\/CleanMyMac|Contents\/MacOS\/CleanMyMac|Sources\/CleanMyMac|api\/lead\/clean-my-mac|com\.luisroquette\.clean-my-mac|clean-my-mac-demo\.mp4|branding\/needs-regeneration/;

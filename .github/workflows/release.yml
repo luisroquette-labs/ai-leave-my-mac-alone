@@ -15,14 +15,27 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - name: Verify tag matches version
         run: test "$GITHUB_REF_NAME" = "v$(cat VERSION)"
+      - name: Skip when a notarized release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install test dependencies
+        if: steps.existing.outputs.skip != 'true'
         run: |
           python3 -m venv .venv
           .venv/bin/pip install --disable-pip-version-check -r requirements-dev.txt
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - name: Build verified release
+        if: steps.existing.outputs.skip != 'true'
         run: ./Scripts/package-release.sh
       - name: Publish release
+        if: steps.existing.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

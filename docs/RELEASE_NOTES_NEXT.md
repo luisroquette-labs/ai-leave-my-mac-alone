@@ -2,7 +2,7 @@
 
 Version: **2.4.0**. This file is the draft. Do not create a GitHub release or push a `v*` tag until the Developer ID build in [SIGNING.md](SIGNING.md) is stapled and the screenshots below exist.
 
-`VERSION`, `Info.plist` (build 26), and the Chrome extension manifest report **2.4.0** so the signed build carries the right version. The README badge and the website still say **2.3.1** until the stapled 2.4.0 zip is published. The ZIP on the current GitHub release is that build: Portuguese UI, ad-hoc signature. Product Hunt should wait until the download is this next build.
+`VERSION`, `Info.plist` (build 26), the Chrome extension manifest, the README badge, and the website all report **2.4.0**. The ZIP on the current GitHub release is that build: Portuguese UI, ad-hoc signature. Product Hunt should wait until the download is this next build.
 
 ## Suggested title
 
@@ -26,8 +26,8 @@ Native macOS menu-bar SSD guard for people building with AI. Warns at 75% disk, 
 
 ## Before you tag 2.4.0
 
-1. When the stapled zip is published, bump the README badge and `softwareVersion` / `vX.Y.Z · Apple silicon` on the website (and `Scripts/test-web-demo.mjs`). `VERSION`, `Info.plist`, and the extension manifest are already 2.4.0.
+1. Version strings are already 2.4.0 everywhere `check-public-release.sh` looks.
 2. Sign and staple with the scripted path in `docs/SIGNING.md` (`make-app.sh` with `AILMMA_SIGN_IDENTITY`, then `notarize-app.sh`).
 3. Replace the assets listed in `branding/needs-regeneration/README.md`.
 4. Capture the English menu-bar screens listed in that same file.
-5. Only then tag. Tagging `v*` runs `.github/workflows/release.yml`, which publishes a release. That workflow still ad-hoc signs. For Product Hunt, ship the stapled zip, not the ad-hoc artifact from the tag workflow, unless the workflow is updated first.
+5. Publish with `gh release create v2.4.0` and the stapled zips from `notarize-app.sh`. The tag workflow skips when a release for the tag already exists, so it does not replace the notarized assets with an ad-hoc build.
